@@ -9,12 +9,20 @@ from MoEIR.modules.utils import prepare_modules
 
 
 parser = argparse.ArgumentParser(prog='MoEIR')
+#dataset setting
 parser.add_argument('--n_partition', type=str, default='2', help='Number of data partition')
+
+#train setting
 parser.add_argument('--patchsize', type=int, default=41)
 parser.add_argument('--batchsize', type=int, default=128)
+parser.add_argument('--featuresize', type=int, default=512)
+parser.add_argument('--ex_featuresize', type=int, default=64)
+parser.add_argument('--n_experts', type=int, default=2)
+
+#modules
 parser.add_argument('--feature_extractor', type=str, default='resnet')
 parser.add_argument('experts', type=str, nargs='+')
-parser.add_argument('--gate', type=str, default='base')
+parser.add_argument('--gate', type=str, default='gmp')
 parser.add_argument('--reconstructor', type=str, default='base')
 parser.add_argument('--attention', type=str, default='base')
 parser.add_argument('--gpu', type=int, default=None)
@@ -35,6 +43,10 @@ module_sequence = prepare_modules(
         'attention': opt.attention,
     },
     device=device,
+    feature_size = opt.featuresize,
+    expert_feature_size = opt.ex_featuresize,
+    patch_size = opt.patchsize,
+    num_experts = opt.n_experts
 )
 
 print(module_sequence)
