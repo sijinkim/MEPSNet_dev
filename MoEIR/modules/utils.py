@@ -13,17 +13,17 @@ def prepare_modules(module_map, device, feature_size, expert_feature_size, num_e
                 module.append(get_expert_module(expert_key, feature_size, expert_feature_size).to(device))
 
         elif module_key == 'gate':
-            module = get_gate_module(module_map[module_key], feature_size, expert_feature_size, patch_size, num_experts).to(device)
+            module = get_gate_module(module_map[module_key], feature_size, expert_feature_size, num_experts).to(device)
 
         elif module_key == 'reconstructor':
             module = get_recon_module(module_map[module_key], expert_feature_size, num_experts).to(device)
 
         elif module_key == 'attention':
             module = get_attention_module(module_map[module_key]).to(device)
-
+        
         else:
             raise ValueError
-
+        
         module_seq.append(module)
 
     return module_seq
