@@ -7,8 +7,8 @@ class ResNet(torch.nn.Module):
         super(ResNet, self).__init__()
         self.resnet = resnet34(pretrained=True)
 
-        # Drop the last fc layers. B x 512 x 1 x 1
-        self.resnet = torch.nn.Sequential(*list(self.resnet.children())[:-1])
+        # Drop the last fc layers. B x 512 x H x W
+        self.resnet = torch.nn.Sequential(*list(self.resnet.children())[:-2])
 
         for param in self.resnet.parameters():
             param.requires_grad = False

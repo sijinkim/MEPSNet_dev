@@ -34,7 +34,7 @@ class FVDSRNet(nn.Module):
         self.input = nn.Conv2d(in_channels = feature_size,
                                out_channels = out_feature_size,
                                kernel_size = 1,
-                               stride = 0,
+                               stride = 1,
                                padding = 0,
                                bias = False)
         self.output = nn.Conv2d(in_channels = out_feature_size,
