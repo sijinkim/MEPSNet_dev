@@ -1,8 +1,8 @@
-def prepare_modules(module_map, device, feature_size, expert_feature_size, patch_size, num_experts):
+def prepare_modules(module_map, device, feature_size, expert_feature_size, num_experts):
     module_seq = []
     for module_key in module_map.keys():
         if module_key == 'feature_extractor':
-            module = get_feature_extractor_module(module_map[module_key])
+            module = get_feature_extractor_module(module_map[module_key], feature_size)
             module = module.to(device)
 
         elif module_key == 'experts':
@@ -13,26 +13,31 @@ def prepare_modules(module_map, device, feature_size, expert_feature_size, patch
                 module.append(get_expert_module(expert_key, feature_size, expert_feature_size).to(device))
 
         elif module_key == 'gate':
-            module = get_gate_module(module_map[module_key], feature_size, expert_feature_size, patch_size, num_experts).to(device)
+            module = get_gate_module(module_map[module_key], feature_size, expert_feature_size, num_experts).to(device)
 
         elif module_key == 'reconstructor':
             module = get_recon_module(module_map[module_key], expert_feature_size, num_experts).to(device)
 
         elif module_key == 'attention':
             module = get_attention_module(module_map[module_key]).to(device)
-
+        
         else:
             raise ValueError
-
+        
         module_seq.append(module)
 
     return module_seq
 
 
-def get_feature_extractor_module(extractor_key):
+def get_feature_extractor_module(extractor_key, f_size):
     if extractor_key == 'resnet':
         from MoEIR.modules.feature_extractors import ResNet
         return ResNet()
+    
+    elif extractor_key == 'base':
+        from MoEIR.modules.feature_extractors import BaseNet
+        return BaseNet(feature_size=f_size)
+
     else:
         raise ValueError
 
@@ -46,18 +51,16 @@ def get_expert_module(expert_key, f_size, ex_f_size):
         raise ValueError
 
 
-def get_gate_module(gate_key, f_size, ex_f_size, patch, num_experts):
+def get_gate_module(gate_key, f_size, ex_f_size, num_experts):
     if gate_key == 'gmp':
         from MoEIR.modules.gates import GMP_GateNet
         return GMP_GateNet(in_feature_size = f_size,
                            out_feature_size = ex_f_size,
-                           patch_size = patch,
                            num_experts = num_experts)
     elif gate_key == 'gap':
         from MoEIR.modules.gates import GAP_GateNet
         return GAP_GateNet(in_feature_size = f_size,
                            out_feature_size = ex_f_size,
-                           patch_size = patch,
                            num_experts = num_experts)
     else:
         raise ValueError

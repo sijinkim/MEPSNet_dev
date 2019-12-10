@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 #GateNet with Global Max Pooling
@@ -5,7 +6,6 @@ class GMP_GateNet(nn.Module):
     def __init__(self,
                  in_feature_size = 512,
                  out_feature_size = 64,
-                 patch_size = 41,
                  num_experts = 2):
         super(GMP_GateNet, self).__init__()
         self.input = nn.Conv2d(in_channels = in_feature_size,                                                                                             out_channels = out_feature_size, 
@@ -25,7 +25,7 @@ class GMP_GateNet(nn.Module):
         self.conv2 = nn.Conv2d(in_channels = out_feature_size // 2,
                                out_channels = out_feature_size // 2,
                                kernel_size = 3,
-                               stride = 2,
+                               stride = 1,
                                padding = 1)
         self.relu = nn.ReLU(inplace = True)
         self.pool = nn.AdaptiveMaxPool2d((5,5))
@@ -50,10 +50,10 @@ class GAP_GateNet(nn.Module):
     def __init__(self,
                  in_feature_size = 512,
                  out_feature_size = 64,
-                 patch_size = 41,
                  num_experts = 2):
         super(GAP_GateNet, self).__init__()
-        self.input = nn.Conv2d(in_channels = in_feature_size,                                out_channels = out_feature_size, 
+        self.input = nn.Conv2d(in_channels = in_feature_size,
+                               out_channels = out_feature_size, 
                                kernel_size = 3,
                                stride = 2,
                                padding = 1) 
@@ -70,7 +70,7 @@ class GAP_GateNet(nn.Module):
         self.conv2 = nn.Conv2d(in_channels = out_feature_size // 2,
                                out_channels = out_feature_size // 2,
                                kernel_size = 3,
-                               stride = 2,
+                               stride = 1,
                                padding = 1)
         self.relu = nn.ReLU(inplace = True)
         self.pool = nn.AdaptiveAvgPool2d((5,5))
