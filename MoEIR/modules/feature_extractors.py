@@ -1,8 +1,9 @@
 import torch
+import torch.nn as nn
 from torchvision.models import resnet34
 
 
-class ResNet(torch.nn.Module):
+class ResNet(nn.Module):
     def __init__(self):
         super(ResNet, self).__init__()
         self.resnet = resnet34(pretrained=True)
@@ -19,4 +20,39 @@ class ResNet(torch.nn.Module):
     def __repr__(self):
         return f"{self.__module__.split('.')[-1].upper()} " \
             f"<{self.__class__.__name__}>"
+
+class BaseNet(nn.Module):
+    def __init__(self, feature_size=64): 
+        super(BaseNet, self).__init__()
+        self.input = nn.Conv2d(in_channels=3,
+                               out_channels=feature_size//2,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=False)
+        self.conv1 = nn.Conv2d(in_channels=feature_size//2,
+                               out_channels=feature_size,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=False)
+        self.conv2 = nn.Conv2d(in_channels=feature_size,
+                               out_channels=feature_size,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=False)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        output = self.relu(self.input(x))
+        output = self.relu(self.conv1(output))
+        output = self.relu(self.conv2(output))
+        return output
+       
+
+    def __repr__(self):
+        return f"{self.__module__.split('.')[-1].upper()} " \
+            f"<{self.__class__.__name__}>"
+
 

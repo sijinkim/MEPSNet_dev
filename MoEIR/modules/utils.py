@@ -2,7 +2,7 @@ def prepare_modules(module_map, device, feature_size, expert_feature_size, num_e
     module_seq = []
     for module_key in module_map.keys():
         if module_key == 'feature_extractor':
-            module = get_feature_extractor_module(module_map[module_key])
+            module = get_feature_extractor_module(module_map[module_key], feature_size)
             module = module.to(device)
 
         elif module_key == 'experts':
@@ -29,10 +29,15 @@ def prepare_modules(module_map, device, feature_size, expert_feature_size, num_e
     return module_seq
 
 
-def get_feature_extractor_module(extractor_key):
+def get_feature_extractor_module(extractor_key, f_size):
     if extractor_key == 'resnet':
         from MoEIR.modules.feature_extractors import ResNet
         return ResNet()
+    
+    elif extractor_key == 'base':
+        from MoEIR.modules.feature_extractors import BaseNet
+        return BaseNet(feature_size=f_size)
+
     else:
         raise ValueError
 
