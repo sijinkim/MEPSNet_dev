@@ -9,6 +9,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
+from MoEIR.modules.experts_gate import Train_with_gate
 from MoEIR.data.dataset import TrainDataset
 from MoEIR.modules.utils import prepare_modules
 
@@ -23,7 +24,7 @@ parser.add_argument('--n_partition', type=str, default='2', help='Number of data
 #train setting
 parser.add_argument('--patchsize', type=int, default=41)
 parser.add_argument('--batchsize', type=int, default=128)
-parser.add_argument('--featuresize', type=int, default=512)
+parser.add_argument('--featuresize', type=int, default=256)
 parser.add_argument('--ex_featuresize', type=int, default=64)
 parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--weightdecay', type=float, default=1e-4)
@@ -31,7 +32,7 @@ parser.add_argument('--gpu', type=int, default=None)
 
 
 #modules
-parser.add_argument('--feature_extractor', type=str, default='resnet')
+parser.add_argument('--feature_extractor', type=str, default='base')
 parser.add_argument('experts', type=str, nargs='+')
 parser.add_argument('--gate', type=str)
 parser.add_argument('--reconstructor', type=str, default='base')
@@ -78,7 +79,7 @@ print(f'Train dataset: part{opt.n_partition} distorted data')
 criterion = nn.MSELoss(size_average=False)
 optimizer = optim.Adam(
     [{'params':net.parameters() for net in module_sequence[1]},
-    {'params':net.parameters() for net in module_sequence[2:]}],
+    {'params':net.parameters() for i,net in enumerate(module_sequence) if i != 1}],
     weight_decay=opt.weightdecay,
     lr=opt.lr
 )
@@ -105,16 +106,27 @@ while True:
         data = data.to(device)
         ref = ref.to(device)
         
-        input_feature = module_sequence[0](data) #feature_extractor module
-        expert_outputs = [expert(input_feature) for expert in module_sequence[1]] #expert module
-        gate_output = module_sequence[2](input_feature) #gate module
-        
-        #give weights to each expert modules by using output of gate module
-        expert_outputs = torch.stack(expert_outputs, dim=1)
-        weighted_expert_outputs = expert_outputs.mul(gate_output.view(opt.batchsize, len(opt.experts), 1, 1, 1)).sum(dim=1)
-        reconst_output = module_sequence[3](weighted_expert_outputs)
+        input_feature = module_sequence[0](data)
+        if opt.gate:        
+            train = Train_with_gate(
+                      module_sequence=module_sequence[1:-1], 
+                      batch_size=opt.batchsize,
+                      n_experts=len(opt.experts))
+            outputs = train(input_feature)
+             
+        elif opt.attention:
+           #outputs = Train_with_attention(
+           #             module_sequence=module_sequence[1:2],
+           #             feature=input_feature,
+           #             batch_size=opt.batchsize,
+           #             n_experts=len(opt.experts))
+           pass
+        else:
+            raise ValueError 
 
         #Calculate loss
+        reconst_output = module_sequence[3](outputs)
+        
         final_output = reconst_output
         loss = criterion(final_output, ref).div(opt.batchsize)
 
