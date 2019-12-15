@@ -9,11 +9,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
-from MoEIR.modules.experts_gate import Train_with_gate
 from MoEIR.data.dataset import TrainDataset
-from MoEIR.modules.utils import prepare_modules
-
-import pdb
 
 parser = argparse.ArgumentParser(prog='MoEIR')
 #dataset setting
@@ -34,9 +30,9 @@ parser.add_argument('--gpu', type=int, default=None)
 #modules
 parser.add_argument('--feature_extractor', type=str, default='base')
 parser.add_argument('experts', type=str, nargs='+')
-parser.add_argument('--gate', type=str)
+parser.add_argument('--gate', type=str, help='Take gmp or gap')
 parser.add_argument('--reconstructor', type=str, default='base')
-parser.add_argument('--attention', type=str)
+parser.add_argument('--attention', type=str, help='The base is AttentionNet')
 
 opt = parser.parse_args()
 
@@ -54,19 +50,30 @@ print(f'Fix seed number: 0')
 
 writer = SummaryWriter(log_dir=f'/home/tiwlsdi0306/workspace/runs/noise{opt.n_noise}/part{opt.n_partition}')
 
-module_keys = ['feature_extractor', 'experts', 'gate', 'attention', 'reconstructor']
-module_list = [opt.feature_extractor, opt.experts, opt.gate, opt.attention, opt.reconstructor]
-module_map = {key: val for key, val in zip(module_keys, module_list) if val}
+if opt.gate:
+    from MoEIR.modules.experts_gate import MoE_with_Gate
 
-module_sequence = prepare_modules(
-    module_map=module_map,
-    device=device,
-    feature_size=opt.featuresize,
-    expert_feature_size=opt.ex_featuresize,
-    num_experts=len(opt.experts)
-)
+    train_sequence = MoE_with_Gate(device=device,
+                                   feature_size=opt.featuresize,
+                                   expert_feature_size=opt.ex_featuresize,
+                                   gate=opt.gate,
+                                   n_experts=len(opt.experts),
+                                   batch_size=opt.batchsize)
+elif opt.attention:
+    from MoEIR.modules.experts_attention import MoE_with_Attention
+    
+    train_sequence = MoE_with_Attention(device=device,
+                                        feature_size=opt.featuresize,
+                                        expert_feature_size=opt.ex_featuresize,
+                                        n_experts=len(opt.experts),
+                                        batch_size=opt.batchsize)
+else:
+    raise ValueError
+
+module_sequence = train_sequence.take_modules()
 print('Prepare module sequence')
 print(module_sequence)
+
 
 train_dataset = TrainDataset(size=opt.patchsize, n_partition=opt.n_partition)
 train_loader = DataLoader(
@@ -91,8 +98,6 @@ scheduler = ReduceLROnPlateau(
 )
 print('LOSS: MSE loss, optimizer: Adam, Using scheduler')
 
-pdb.set_trace()
-
 print("Start Training")
 epoch = 1
 
@@ -106,29 +111,9 @@ while True:
         data = data.to(device)
         ref = ref.to(device)
         
-        input_feature = module_sequence[0](data)
-        if opt.gate:        
-            train = Train_with_gate(
-                      module_sequence=module_sequence[1:-1], 
-                      batch_size=opt.batchsize,
-                      n_experts=len(opt.experts))
-            outputs = train(input_feature)
-             
-        elif opt.attention:
-           #outputs = Train_with_attention(
-           #             module_sequence=module_sequence[1:2],
-           #             feature=input_feature,
-           #             batch_size=opt.batchsize,
-           #             n_experts=len(opt.experts))
-           pass
-        else:
-            raise ValueError 
-
+        outputs = train_sequence(data) 
         #Calculate loss
-        reconst_output = module_sequence[3](outputs)
-        
-        final_output = reconst_output
-        loss = criterion(final_output, ref).div(opt.batchsize)
+        loss = criterion(outputs, ref).div(opt.batchsize)
 
         print(f'Epoch[{epoch}/{index}] Ours Loss: {loss}')
         cost += loss

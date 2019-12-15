@@ -21,9 +21,9 @@ class ResNet(nn.Module):
         return f"{self.__module__.split('.')[-1].upper()} " \
             f"<{self.__class__.__name__}>"
 
-class BaseNet(nn.Module):
+class FeatureNet(nn.Module):
     def __init__(self, feature_size=64): 
-        super(BaseNet, self).__init__()
+        super(FeatureNet, self).__init__()
         self.input = nn.Conv2d(in_channels=3,
                                out_channels=feature_size//2,
                                kernel_size=3,
