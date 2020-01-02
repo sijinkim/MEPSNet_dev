@@ -4,7 +4,7 @@ import torch.nn as nn
 from MoEIR.modules.feature_extractors import FeatureNet
 from MoEIR.modules.experts import FVDSRNet
 from MoEIR.modules.attentions import AttentionNet 
-from MoEIR.modules.reconstructors import ChannelWiseAttentionNet
+from MoEIR.modules.reconstructors import ReconstructNet_with_CWA
 
 
 class MoE_with_Attention(nn.Module):
@@ -17,7 +17,7 @@ class MoE_with_Attention(nn.Module):
         self.feature_extractor = FeatureNet(feature_size=feature_size).to(device)
         self.experts = [FVDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size).to(device) for _ in range(0, n_experts)]
         self.attention = AttentionNet(feature_size= expert_feature_size, num_experts=n_experts).to(device)
-        self.reconstructor = ChannelWiseAttentionNet(in_channels=expert_feature_size, out_channels=3, num_experts=n_experts).to(device) 
+        self.reconstructor = ReconstructNet_with_CWA(in_channels=expert_feature_size, out_channels=3, num_experts=n_experts).to(device) 
 
     def forward(self, x):
         feature = self.feature_extractor(x)

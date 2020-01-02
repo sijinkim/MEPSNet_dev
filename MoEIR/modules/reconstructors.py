@@ -22,12 +22,12 @@ class ReconstructNet(nn.Module):
             f"<{self.__class__.__name__}>"
 
 
-class ChannelWiseAttentionNet(nn.Module):
+class ReconstructNet_with_CWA(nn.Module):
     def __init__(self,
                  in_channels = 64,
                  out_channels = 3,
                  num_experts = 2):
-        super(ChannelWiseAttentionNet, self).__init__()
+        super(ReconstructNet_with_CWA, self).__init__()
         feature_size = in_channels * num_experts
         self.recon = nn.Sequential(nn.Conv2d(in_channels=feature_size,
                                              out_channels=feature_size//2,
