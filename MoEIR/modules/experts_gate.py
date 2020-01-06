@@ -37,5 +37,16 @@ class MoE_with_Gate(nn.Module):
         final_output = self.reconstructor(weighted_feature)
         return final_output
 
+    def forward_valid_phase(self,x):
+        feature = self.feature_extractor(x)
+        expert_output = [expert(feature) for expert in self.experts]
+        gate_output = self.gate(feature)
+        
+        stacked_experts = torch.stack(expert_output, dim=1)
+        weighted_feature = stacked_experts.mul(gate_output.view(1, self.n_experts, 1, 1, 1)).sum(dim=1)
+        final_output = self.reconstructor(weighted_feature)
+        return final_output
+
+
     def take_modules(self):
         return [self.feature_extractor, self.experts, self.gate, self.reconstructor]

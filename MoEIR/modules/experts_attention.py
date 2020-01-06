@@ -27,5 +27,13 @@ class MoE_with_Attention(nn.Module):
         final_output = self.reconstructor(cwa_output)
         return final_output
 
+    def forward_valid_phase(self, x):
+        feature = self.feature_extractor(x)
+        experts_output = [expert(feature) for expert in self.experts]
+        concat_experts = torch.cat(tuple(experts_output), dim=1)
+        cwa_output = self.attention(concat_experts)
+        final_output = self.reconstructor(cwa_output)
+        return final_output
+
     def take_modules(self):
         return [self.feature_extractor, self.experts, self.attention, self.reconstructor]
