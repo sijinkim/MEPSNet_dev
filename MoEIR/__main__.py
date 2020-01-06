@@ -20,7 +20,7 @@ parser.add_argument('--dataset', type=str, default='DIV2K')
 parser.add_argument('--n_noise', type=str, default='4', help='Number of noise - 4 or 6?')
 parser.add_argument('--n_partition', type=str, default='2', help='Number of data partition - 2, 4, Mix')
 parser.add_argument('--n_valimages', type=int, default=5, help='Number of images using in validation phase')
-parser.add_argument('--datapath', type=str, default='~/workspace/image_dataset/noiseInfo/')
+parser.add_argument('--datapath', type=str, default='/home/tiwlsdi0306/workspace/image_dataset/noiseInfo/')
 
 #train setting
 parser.add_argument('--patchsize', type=int, default=41)
@@ -48,7 +48,6 @@ else torch.device(f'cuda:{opt.gpu}')
 print(f'Using CUDA gpu{opt.gpu}')
 
 writer = SummaryWriter(log_dir=f'/home/tiwlsdi0306/workspace/MoEir_log/part{opt.n_partition}')
-noise_info = os.path.join(opt.datapath, opt.dataset) #~/workspace/image_dataset/noiseInfo/DIV2K
 
 #set seed for train
 torch.manual_seed(0)
@@ -64,7 +63,8 @@ if opt.gate:
                                    expert_feature_size=opt.ex_featuresize,
                                    gate=opt.gate,
                                    n_experts=len(opt.experts),
-                                   batch_size=opt.batchsize)
+                                   batch_size=opt.batchsize)        
+
 elif opt.attention:
     from MoEIR.modules.experts_attention import MoE_with_Attention
     
