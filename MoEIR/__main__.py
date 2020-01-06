@@ -89,7 +89,7 @@ train_loader = DataLoader( train_dataset,
 		                   batch_size=opt.batchsize,
 		                   drop_last=True,
 		                   shuffle=True)
-print(f'Train dataset: part{opt.n_partition} distorted data')
+print(f'Train dataset: part{opt.n_partition} distorted data - length of data: {len(train_dataset)}')
 
 #Load validation data
 valid_dataset = ValidTestDataset(dataset=opt.dataset, n_partition=opt.n_partition, num_images=opt.n_valimages, type_='valid')
@@ -98,7 +98,10 @@ valid_loader = DataLoader( valid_dataset,
 		                   drop_last=True,
 		                   shuffle=True)
 
+#criterion = nn.MSELoss(reduction='sum')
 criterion = nn.MSELoss(reduction='mean')
+
+
 optimizer = optim.Adam(
     [{'params':net.parameters() for net in module_sequence[1]},
     {'params':net.parameters() for i,net in enumerate(module_sequence) if i != 1}],
@@ -131,6 +134,7 @@ while True:
         #Calculate loss
         loss = criterion(outputs, ref) #per batch
 
+        #print(f'Epoch[{epoch}/{index}] Ours Loss: {loss/opt.batchsize}')
         print(f'Epoch[{epoch}/{index}] Ours Loss: {loss}')
         cost += loss #per epoch
         
@@ -138,7 +142,9 @@ while True:
         loss.backward()
         optimizer.step()
     
-    writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/TRAIN/LOSS', cost, epoch) 
+    writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/TRAIN/LOSS', cost/(len(train_dataset)//opt.batchsize), epoch) 
+
+
 
     #Validation 
     if epoch % 10 == 0:
@@ -149,14 +155,16 @@ while True:
         print(f'[EPOCH{epoch}] Validation\n dataset: {opt.dataset} part{opt.n_partition} distorted data')
         
         with torch.no_grad():
+            #val_criterion = nn.MSELoss(reduction='sum')
             val_criterion = nn.MSELoss(reduction='mean')
+            
             loss_record = 0
             for step, (data, ref, filename) in enumerate(valid_loader):
                 ref = ref.squeeze(0).to(device)
                 result_patch = []
                 for patch_idx, patch in enumerate(data):
                     patch = patch.to(device).squeeze(0)
-                    outputs = train_sequence(patch).squeeze(0)
+                    outputs = train_sequence.forward_valid_phase(patch).squeeze(0)
                     result_patch.append(outputs)
 
                 #Merge 8 image patches
