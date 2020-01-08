@@ -98,8 +98,7 @@ valid_loader = DataLoader( valid_dataset,
 		                   drop_last=True,
 		                   shuffle=True)
 
-#criterion = nn.MSELoss(reduction='sum')
-criterion = nn.MSELoss(reduction='mean')
+criterion = nn.MSELoss(reduction='sum')
 
 
 optimizer = optim.Adam(
@@ -134,8 +133,7 @@ while True:
         #Calculate loss
         loss = criterion(outputs, ref) #per batch
 
-        #print(f'Epoch[{epoch}/{index}] Ours Loss: {loss/opt.batchsize}')
-        print(f'Epoch[{epoch}/{index}] Ours Loss: {loss}')
+        print(f'Epoch[{epoch}/{index}] Ours Loss: {loss/opt.batchsize}')
         cost += loss #per epoch
         
         #back propagation
@@ -155,8 +153,7 @@ while True:
         print(f'[EPOCH{epoch}] Validation\n dataset: {opt.dataset} part{opt.n_partition} distorted data')
         
         with torch.no_grad():
-            #val_criterion = nn.MSELoss(reduction='sum')
-            val_criterion = nn.MSELoss(reduction='mean')
+            val_criterion = nn.MSELoss(reduction='sum')
             
             loss_record = 0
             for step, (data, ref, filename) in enumerate(valid_loader):
@@ -216,7 +213,7 @@ while True:
         writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
 
 
-        scheduler.step(loss_record/opt.n_valimages)      
+        scheduler.step(loss_record/(opt.n_valimages*12))      
 
 
     epoch += 1
