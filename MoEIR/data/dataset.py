@@ -80,7 +80,6 @@ class ValidTestDataset(data.Dataset):
         data_ = Image.open(self.data_[index])
         target = Image.open(self.target[index//12])
         filename = self.data_[index].split('/')[-1] #e.g. ('0801_11.png'),
-        filename = str(filename)[2:-3] 0801_11.png
         
         data_ = self.transform(data_.convert('RGB'))
         target = self.transform(target.convert('RGB'))
