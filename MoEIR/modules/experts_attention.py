@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 
-from MoEIR.modules.feature_extractors import FeatureNet
-from MoEIR.modules.experts import FVDSRNet
-from MoEIR.modules.attentions import AttentionNet 
-from MoEIR.modules.reconstructors import ReconstructNet_with_CWA
+from MoEIR.modules import FeatureNet
+from MoEIR.modules import FVDSRNet
+from MoEIR.modules import AttentionNet 
+from MoEIR.modules import ReconstructNet_with_CWA
 
 
 class MoE_with_Attention(nn.Module):

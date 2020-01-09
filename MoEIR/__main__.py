@@ -11,8 +11,8 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
-from MoEIR.data.dataset import TrainDataset, ValidTestDataset
-
+from MoEIR.data import TrainDataset, ValidTestDataset
+from MoEIR.measure import PSNR_SSIM_by_type
 
 parser = argparse.ArgumentParser(prog='MoEIR')
 #dataset setting
@@ -47,6 +47,7 @@ device = torch.device('cpu') if not opt.gpu \
 else torch.device(f'cuda:{opt.gpu}')
 print(f'Using CUDA gpu{opt.gpu}')
 
+#set tensorboardX writer
 writer = SummaryWriter(log_dir=f'/home/tiwlsdi0306/workspace/MoEir_log/part{opt.n_partition}')
 
 #set seed for train
@@ -56,7 +57,7 @@ torch.cuda.manual_seed(0)
 print(f'Fix seed number: 0')
 
 if opt.gate:
-    from MoEIR.modules.experts_gate import MoE_with_Gate
+    from MoEIR.modules import MoE_with_Gate
 
     train_sequence = MoE_with_Gate(device=device,
                                    feature_size=opt.featuresize,
@@ -66,7 +67,7 @@ if opt.gate:
                                    batch_size=opt.batchsize)        
 
 elif opt.attention:
-    from MoEIR.modules.experts_attention import MoE_with_Attention
+    from MoEIR.modules import MoE_with_Attention
     
     train_sequence = MoE_with_Attention(device=device,
                                         feature_size=opt.featuresize,
@@ -133,7 +134,7 @@ while True:
         #Calculate loss
         loss = criterion(outputs, ref) #per batch
 
-        print(f'Epoch[{epoch}/{index}] Ours Loss: {loss/opt.batchsize}')
+        print(f'Epoch[{epoch}/{index}] Ours Loss: {format(loss/opt.batchsize, ".3f")}')
         cost += loss #per epoch
         
         #back propagation
@@ -146,24 +147,24 @@ while True:
 
     #Validation 
     if epoch % 10 == 0:
-        #mean_psnr, mean_ssim, mean_lpips = 0, 0, 0
-        #mean_loss, loss_record = 0, 0
+        #set measure
+        measure = PSNR_SSIM_by_type(dataset=opt.dataset, num_partition=opt.n_partition, phase_type='valid')
         loss_record, psnr_record, ssim_record = 0, 0, 0        
 
         print(f'[EPOCH{epoch}] Validation\n dataset: {opt.dataset} part{opt.n_partition} distorted data')
         
         with torch.no_grad():
             val_criterion = nn.MSELoss(reduction='sum')
-            
             loss_record = 0
             for step, (data, ref, filename) in enumerate(valid_loader):
                 ref = ref.squeeze(0).to(device)
+                filename = str(filename)[2:-3]
+                
                 result_patch = []
                 for patch_idx, patch in enumerate(data):
                     patch = patch.to(device).squeeze(0)
                     outputs = train_sequence.forward_valid_phase(patch).squeeze(0)
                     result_patch.append(outputs)
-
                 #Merge 8 image patches
                 h, w = ref.size()[1:]
                 h_half, w_half = int(h/2), int(w/2)
@@ -185,7 +186,6 @@ while True:
                 #Evaluate MSE loss
                 val_loss = val_criterion(result.to(device), ref)
                 loss_record += val_loss
-                print(f"Epoch[{epoch}/{step}] Image {filename} loss: {val_loss}")
                 #Evaluate LPIPS
 
 
@@ -198,13 +198,19 @@ while True:
                 ref_array = (ref_array.astype(np.float64) - min_val) / (max_val-min_val)
 
                 psnr_ = psnr(ref_array, result_array, data_range=1)
-                print(f"Epoch[{epoch}/{step}] Image {filename} PSNR: {psnr_}") 
                 #Evaluate SSIM
                 ssim_ = ssim(ref_array, result_array, data_range=1, multichannel=True)
-                print(f"Epoch[{epoch}/{step}] Image {filename} SSIM: {ssim_}") 
+                print(f"Epoch[{epoch}/{step}] Image {filename} LOSS:{format(val_loss,'.3f')}, PSNR:{format(psnr_,'.3f')}, SSIM: {format(ssim_,'.3f')}") 
  
                 psnr_record += psnr_
                 ssim_record += ssim_
+                
+                #Evaluate PSNR, SSIM by type
+                measure.get_psnr(x=result_array, ref=ref_array, image_name=filename)
+                measure.get_ssim(x=result_array, ref=ref_array, image_name=filename) 
+                #print(f"Epoch[{epoch}/{step}] Image {filename} type_psnr: {measure.type_psnr}")
+                #print(f"Epoch[{epoch}/{step}] Image {filename} type_ssim: {measure.type_ssim}")
+
 
         writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/LOSS', loss_record/(opt.n_valimages*12), epoch)
 
@@ -212,6 +218,14 @@ while True:
 
         writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
 
+        #psnr, ssim by type
+        psnr_result = measure.get_psnr_result()
+        ssim_result = measure.get_ssim_result()
+        writer.add_scalars(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/TYPE_PSNR', {'gwn':psnr_result['gwn'], 'gblur':psnr_result['gblur'], 'contrast':psnr_result['contrast'], 'fnoise':psnr_result['fnoise']}, epoch)
+        writer.add_scalars(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
+
+        print(f"Epoch[{epoch}] Image {filename} type_psnr_result: {psnr_result}")
+        print(f"Epoch[{epoch}] Image {filename} type_ssim_result: {ssim_result}")
 
         scheduler.step(loss_record/(opt.n_valimages*12))      
 
