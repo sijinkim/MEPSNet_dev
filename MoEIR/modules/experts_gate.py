@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 
-from MoEIR.modules.feature_extractors import FeatureNet
-from MoEIR.modules.experts import FVDSRNet
-from MoEIR.modules.reconstructors import ReconstructNet
+from MoEIR.modules  import FeatureNet
+from MoEIR.modules import FVDSRNet
+from MoEIR.modules import ReconstructNet
 
 class MoE_with_Gate(nn.Module):
     def __init__(self, device, feature_size, expert_feature_size, gate, n_experts, batch_size):
@@ -18,10 +18,10 @@ class MoE_with_Gate(nn.Module):
 
         gate_key = gate
         if gate_key == 'gmp':
-            from MoEIR.modules.gates import GMP_GateNet
+            from MoEIR.modules import GMP_GateNet
             self.gate = GMP_GateNet(in_feature_size=feature_size, out_feature_size=expert_feature_size, num_experts=n_experts).to(device)
         elif gate_key == 'gap':
-            from MoEIR.modules.gates import GAP_GateNet
+            from MoEIR.module import GAP_GateNet
             self.gate = GAP_GateNet(in_feature_size=feature_size, out_feature_size=expert_feature_size, num_experts=n_experts).to(device)
         else:
             raise ValueError

@@ -11,8 +11,8 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
-from MoEIR.data.dataset import TrainDataset, ValidTestDataset
-
+from MoEIR.data import TrainDataset, ValidTestDataset
+from MoEIR.measure import PSNR_SSIM_by_type
 
 parser = argparse.ArgumentParser(prog='MoEIR')
 #dataset setting
@@ -47,6 +47,7 @@ device = torch.device('cpu') if not opt.gpu \
 else torch.device(f'cuda:{opt.gpu}')
 print(f'Using CUDA gpu{opt.gpu}')
 
+#set tensorboardX writer
 writer = SummaryWriter(log_dir=f'/home/tiwlsdi0306/workspace/MoEir_log/part{opt.n_partition}')
 
 #set seed for train
@@ -56,7 +57,7 @@ torch.cuda.manual_seed(0)
 print(f'Fix seed number: 0')
 
 if opt.gate:
-    from MoEIR.modules.experts_gate import MoE_with_Gate
+    from MoEIR.modules import MoE_with_Gate
 
     train_sequence = MoE_with_Gate(device=device,
                                    feature_size=opt.featuresize,
@@ -66,7 +67,7 @@ if opt.gate:
                                    batch_size=opt.batchsize)        
 
 elif opt.attention:
-    from MoEIR.modules.experts_attention import MoE_with_Attention
+    from MoEIR.modules import MoE_with_Attention
     
     train_sequence = MoE_with_Attention(device=device,
                                         feature_size=opt.featuresize,
