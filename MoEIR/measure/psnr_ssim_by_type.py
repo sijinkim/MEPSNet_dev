@@ -48,8 +48,8 @@ class PSNR_SSIM_by_type:
 
     def get_psnr_result(self):
         psnr_result = {}
-        print(f'Number of types: {self.num_psnr}')
-        print(f'Total psnr of types: {self.type_psnr}')
+        #print(f'Number of types: {self.num_psnr}')
+        #print(f'Total psnr of types: {self.type_psnr}')
         for key in self.type_psnr.keys():
             try:
                 psnr_result[key] = float(self.type_psnr[key]/self.num_psnr[key])
@@ -59,8 +59,8 @@ class PSNR_SSIM_by_type:
     
     def get_ssim_result(self):
         ssim_result = {}
-        print(f'Number of types: {self.num_ssim}')
-        print(f'Total ssim of types: {self.type_ssim}')
+        #print(f'Number of types: {self.num_ssim}')
+        #print(f'Total ssim of types: {self.type_ssim}')
         for key in self.type_ssim.keys():
             try:
                 ssim_result[key] = float(self.type_ssim[key]/self.num_ssim[key])
