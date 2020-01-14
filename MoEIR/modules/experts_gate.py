@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 
 from MoEIR.modules  import FeatureNet
-from MoEIR.modules import FVDSRNet
+from MoEIR.modules import FVDSRNet, FEDSRNet
 from MoEIR.modules import ReconstructNet
 
 class MoE_with_Gate(nn.Module):
-    def __init__(self, device, feature_size, expert_feature_size, gate, n_experts, batch_size):
+    def __init__(self, device, feature_size, expert_feature_size, gate, n_experts, experts_type, batch_size):
         super(MoE_with_Gate, self).__init__()
 
         self.batch = batch_size
@@ -15,6 +15,14 @@ class MoE_with_Gate(nn.Module):
         self.feature_extractor = FeatureNet(feature_size=feature_size).to(device) 
         self.experts = [FVDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size).to(device) for _ in range(0, n_experts)]
         self.reconstructor = ReconstructNet(in_channels=expert_feature_size, out_channels=3).to(device)
+
+        ex_type = experts_type
+        if ex_type == 'fvdsr':
+            self.experts = [FVDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size).to(device) for _ in range(0, n_experts)]
+        elif ex_type == 'fedsr':
+            self.experts = [FEDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size).to(device) for _ in range(0, n_experts)]
+        else:
+            raise ValueError 
 
         gate_key = gate
         if gate_key == 'gmp':

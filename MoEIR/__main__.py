@@ -68,6 +68,7 @@ if opt.gate:
                                    expert_feature_size=opt.ex_featuresize,
                                    gate=opt.gate,
                                    n_experts=len(opt.experts),
+                                   experts_type=opt.experts[0],
                                    batch_size=opt.batchsize)        
 
 elif opt.attention:
@@ -77,6 +78,7 @@ elif opt.attention:
                                         feature_size=opt.featuresize,
                                         expert_feature_size=opt.ex_featuresize,
                                         n_experts=len(opt.experts),
+                                        experts_type=opt.experts[0]
                                         batch_size=opt.batchsize)
 else:
     raise ValueError
