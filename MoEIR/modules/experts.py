@@ -78,7 +78,7 @@ class Residual_Block(nn.Module):
                  kernel_size,
                  stride,
                  padding,
-                 res_scale = 1):
+                 res_scale = 0.1):
         super(Conv_ReLU_Block, self).__init__()
         self.body = nn.Sequential( nn.Conv2d(in_channels, 
                                              out_channels, 
@@ -106,23 +106,24 @@ class Residual_Block(nn.Module):
 class FEDSRNet(nn.Module):
     def __init__(self, feature_size=512, out_feature_size=64):
         super(FEDSRNet, self).__init__()
-        self.res_block = self.make_layer(Residual_Block(in_channels = out_feature_size, 
-                                                        out_channels = out_feature_size, 
-                                                        kernel_size = 3, 
-                                                        stride = 1, 
-                                                        padding = 1), num_of_layer = 10)
-        self.input = nn.Conv2d(in_channels = feature_size,
-                               out_channels = out_feature_size,
-                               kernel_size = 1,
-                               stride = 1,
-                               padding = 0,
-                               bias = False)
-        self.output = nn.Conv2d(in_channels = out_feature_size,
-                               out_channels = out_feature_size,
-                               kernel_size = 3,
-                               stride = 1,
-                               padding = 1,
-                               bias = False)
+        self.res_block = self.make_layer(Residual_Block(in_channels=out_feature_size, 
+                                                        out_channels=out_feature_size, 
+                                                        kernel_size=3, 
+                                                        stride=1, 
+                                                        padding=1,
+                                                        res_scale=0.1), num_of_layer = 10)
+        self.input = nn.Conv2d(in_channels=feature_size,
+                               out_channels=out_feature_size,
+                               kernel_size=1,
+                               stride=1,
+                               padding=0,
+                               bias=False)
+        self.output = nn.Conv2d(in_channels=out_feature_size,
+                               out_channels=out_feature_size,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=False)
     
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
