@@ -19,7 +19,7 @@ def prepare_modules(module_map, device, feature_size, expert_feature_size, num_e
             module = get_recon_module(module_map[module_key], expert_feature_size, num_experts).to(device)
 
         elif module_key == 'attention':
-            module = get_attention_module(module_map[module_key]).to(device)
+            module = get_attention_module(module_map[module_key], expert_feature_size, num_experts).to(device)
         
         else:
             raise ValueError
@@ -80,9 +80,10 @@ def get_recon_module(recon_key, ex_f_size, num_experts):
         raise ValueError
 
 
-def get_attention_module(attention_key):
+def get_attention_module(attention_key, ex_f_size, num_experts):
     if attention_key == 'base':
         from MoEIR.modules.attentions import BaseNet
-        return BaseNet()
+        return BaseNet(feature_size = ex_f_size,
+                       num_experts = num_experts)
     else:
         raise ValueError

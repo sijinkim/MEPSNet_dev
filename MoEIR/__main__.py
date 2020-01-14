@@ -43,9 +43,13 @@ parser.add_argument('--comment', type=str, help='GATE or ATTENTION - using in wr
 opt = parser.parse_args()
 
 print('Start setting')
-device = torch.device('cpu') if not opt.gpu \
-else torch.device(f'cuda:{opt.gpu}')
-print(f'Using CUDA gpu{opt.gpu}')
+
+if not opt.gpu:
+    device = torch.device('cpu')
+else:
+    device = torch.device(f'cuda:{opt.gpu}')
+    print(f'Using CUDA gpu{opt.gpu}')
+
 
 #set tensorboardX writer
 writer = SummaryWriter(log_dir=f'/home/tiwlsdi0306/workspace/MoEir_log/part{opt.n_partition}')
