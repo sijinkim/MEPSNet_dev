@@ -44,7 +44,7 @@ opt = parser.parse_args()
 
 print('Start setting')
 
-if not opt.gpu:
+if opt.gpu is None:
     device = torch.device('cpu')
 else:
     device = torch.device(f'cuda:{opt.gpu}')
@@ -78,7 +78,7 @@ elif opt.attention:
                                         feature_size=opt.featuresize,
                                         expert_feature_size=opt.ex_featuresize,
                                         n_experts=len(opt.experts),
-                                        experts_type=opt.experts[0]
+                                        experts_type=opt.experts[0],
                                         batch_size=opt.batchsize)
 else:
     raise ValueError

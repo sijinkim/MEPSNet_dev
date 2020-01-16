@@ -79,7 +79,7 @@ class Residual_Block(nn.Module):
                  stride,
                  padding,
                  res_scale = 0.1):
-        super(Conv_ReLU_Block, self).__init__()
+        super(Residual_Block, self).__init__()
         self.body = nn.Sequential( nn.Conv2d(in_channels, 
                                              out_channels, 
                                              kernel_size, 
