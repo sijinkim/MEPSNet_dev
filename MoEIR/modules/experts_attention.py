@@ -8,7 +8,7 @@ from MoEIR.modules import ReconstructNet_with_CWA
 
 
 class MoE_with_Attention(nn.Module):
-    def __init__(self, device, feature_size, expert_feature_size, n_experts, experts_type, batch_size):
+    def __init__(self, device, feature_size, expert_feature_size, n_experts, kernel_size, experts_type, batch_size):
         super(MoE_with_Attention, self).__init__()
         
         self.batch = batch_size
@@ -21,9 +21,9 @@ class MoE_with_Attention(nn.Module):
 
         ex_type = experts_type
         if ex_type == 'fvdsr':
-            self.experts = [FVDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size).to(device) for _ in range(0, n_experts)]
+            self.experts = [FVDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size, kernel_size=kernel_size[i]).to(device) for i in range(0, n_experts)]
         elif ex_type == 'fedsr':
-            self.experts = [FEDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size).to(device) for _ in range(0, n_experts)]
+            self.experts = [FEDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size, kernel_size=kernel_size[i]).to(device) for i in range(0, n_experts)]
         else:
             raise ValueError
             

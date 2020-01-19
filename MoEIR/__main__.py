@@ -38,6 +38,7 @@ parser.add_argument('--modelsave', type=str, default='False', help='True: save m
 #modules
 parser.add_argument('--feature_extractor', type=str, default='base')
 parser.add_argument('experts', type=str, nargs='+')
+parser.add_argument('--kernelsize', type=int, nargs='*', help='Must match the length with the number of experts. (take 1, 3, 5, or 7)')
 parser.add_argument('--gate', type=str, help='Take gmp or gap')
 parser.add_argument('--reconstructor', type=str, default='ReconstructNet')
 parser.add_argument('--attention', type=str, help='The base is AttentionNet')
@@ -71,6 +72,7 @@ if opt.gate:
                                    expert_feature_size=opt.ex_featuresize,
                                    gate=opt.gate,
                                    n_experts=len(opt.experts),
+                                   kernel_size=opt.kernelsize,
                                    experts_type=opt.experts[0],
                                    batch_size=opt.batchsize)        
 
@@ -81,6 +83,7 @@ elif opt.attention:
                                         feature_size=opt.featuresize,
                                         expert_feature_size=opt.ex_featuresize,
                                         n_experts=len(opt.experts),
+                                        kernel_size=opt.kernelsize,
                                         experts_type=opt.experts[0],
                                         batch_size=opt.batchsize)
 else:

@@ -24,13 +24,26 @@ class Conv_ReLU_Block(nn.Module):
  
 
 class FVDSRNet(nn.Module):
-    def __init__(self, feature_size=512, out_feature_size=64):
+    def __init__(self, feature_size=512, out_feature_size=64, kernel_size=3):
         super(FVDSRNet, self).__init__()
+        self.kernel = kernel_size
+        padding = 0
+        if self.kernel == 1:
+            padding = 0
+        elif self.kernel == 3:
+            padding = 1
+        elif self.kernel == 5:
+            padding = 2
+        elif self.kernel == 7:
+            padding = 3
+        else:
+            raise ValueError
+
         self.conv_block = self.make_layer(Conv_ReLU_Block(in_channels = out_feature_size, 
                                                           out_channels = out_feature_size, 
-                                                          kernel_size = 3, 
+                                                          kernel_size = self.kernel, 
                                                           stride = 1, 
-                                                          padding = 1), num_of_layer = 14)
+                                                          padding = padding), num_of_layer = 14)
         self.input = nn.Conv2d(in_channels = feature_size,
                                out_channels = out_feature_size,
                                kernel_size = 1,
@@ -104,13 +117,26 @@ class Residual_Block(nn.Module):
 
 
 class FEDSRNet(nn.Module):
-    def __init__(self, feature_size=512, out_feature_size=64):
+    def __init__(self, feature_size=512, out_feature_size=64, kernel_size=3):
         super(FEDSRNet, self).__init__()
+        self.kernel = kernel_size
+        padding = 0 
+        if self.kernel == 1:
+            padding = 0
+        elif self.kernel == 3:
+            padding = 1
+        elif self.kernel == 5:
+            padding = 2
+        elif self.kernel == 7:
+            padding = 3
+        else:
+            raise ValueError
+
         self.res_block = self.make_layer(Residual_Block(in_channels=out_feature_size, 
                                                         out_channels=out_feature_size, 
-                                                        kernel_size=3, 
+                                                        kernel_size=self.kernel, 
                                                         stride=1, 
-                                                        padding=1,
+                                                        padding=padding,
                                                         res_scale=0.1), num_of_layer = 7)
         self.input = nn.Conv2d(in_channels=feature_size,
                                out_channels=out_feature_size,
