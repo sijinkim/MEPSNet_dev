@@ -111,7 +111,7 @@ class FEDSRNet(nn.Module):
                                                         kernel_size=3, 
                                                         stride=1, 
                                                         padding=1,
-                                                        res_scale=0.1), num_of_layer = 10)
+                                                        res_scale=0.1), num_of_layer = 7)
         self.input = nn.Conv2d(in_channels=feature_size,
                                out_channels=out_feature_size,
                                kernel_size=1,
