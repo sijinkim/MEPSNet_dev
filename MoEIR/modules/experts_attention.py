@@ -45,4 +45,8 @@ class MoE_with_Attention(nn.Module):
         return final_output
 
     def take_modules(self):
-        return [self.feature_extractor, self.experts, self.attention, self.reconstructor]
+        sequence = {'feature_extractor': self.feature_extractor, 
+                    'experts': self.experts, 
+                    'attention': self.attention, 
+                    'reconstructor': self.reconstructor}
+        return sequence

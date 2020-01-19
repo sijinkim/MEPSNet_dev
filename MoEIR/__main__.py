@@ -4,6 +4,7 @@ import os
 
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim 
+
 from tensorboardX import SummaryWriter
 import torch
 import torch.nn as nn
@@ -31,6 +32,8 @@ parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--weightdecay', type=float, default=1e-4)
 parser.add_argument('--gpu', type=int, default=None)
 
+#snapshot
+parser.add_argument('--modelsave', type=str, default='False', help='True: save models, False: not save models')
 
 #modules
 parser.add_argument('--feature_extractor', type=str, default='base')
@@ -52,7 +55,7 @@ else:
 
 
 #set tensorboardX writer
-writer = SummaryWriter(log_dir=f'/home/tiwlsdi0306/workspace/MoEir_log/part{opt.n_partition}')
+writer = SummaryWriter(log_dir=f'/home/tiwlsdi0306/workspace/MoEIR_runs/part{opt.n_partition}')
 
 #set seed for train
 torch.manual_seed(0)
@@ -85,11 +88,14 @@ else:
 
 module_sequence = train_sequence.take_modules()
 print('Prepare module sequence')
-print(module_sequence)
-#module_sequence[0]: feature_extractor module
-#module_sequence[1]: experts module list
-#module_sequence[2]: gate or attention module
-#module_sequence[3]: reconstructor module
+module_sequence_keys = list(module_sequence.keys())
+print(module_sequence_keys)
+#module_sequence: dictionary
+#{'feature_extractor': , 'experts':, '(gate) or (attention)': , reconstructor:}
+
+#set checkpoint path
+checkpoint_path = os.path.join('/home/tiwlsdi0306/workspace/snapshot/MoEIR_checkpoint', f'part{opt.n_partition}') 
+PATH = os.path.join(checkpoint_path, f'{opt.experts[0]}_{len(opt.experts)}_{module_sequence_keys[2]}.tar')
 
 train_dataset = TrainDataset(size=opt.patchsize, n_partition=opt.n_partition)
 train_loader = DataLoader( train_dataset,
@@ -109,8 +115,8 @@ criterion = nn.MSELoss(reduction='sum')
 
 
 optimizer = optim.Adam(
-    [{'params':net.parameters() for net in module_sequence[1]},
-    {'params':net.parameters() for i,net in enumerate(module_sequence) if i != 1}],
+    [{'params':net.parameters() for net in module_sequence[module_sequence_keys[1]]}, #for experts
+    {'params':net.parameters() for i,net in enumerate(module_sequence.values()) if i != 1}],
     weight_decay=opt.weightdecay,
     lr=opt.lr
 )
@@ -147,7 +153,7 @@ while True:
         loss.backward()
         optimizer.step()
     
-    writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/TRAIN/LOSS', cost/(len(train_dataset)//opt.batchsize), epoch) 
+    writer.add_scalar(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/TRAIN/LOSS', cost/(len(train_dataset)//opt.batchsize), epoch) 
 
 
 
@@ -214,29 +220,38 @@ while True:
                 #Evaluate PSNR, SSIM by type
                 measure.get_psnr(x=result_array, ref=ref_array, image_name=filename)
                 measure.get_ssim(x=result_array, ref=ref_array, image_name=filename) 
-                #print(f"Epoch[{epoch}/{step}] Image {filename} type_psnr: {measure.type_psnr}")
-                #print(f"Epoch[{epoch}/{step}] Image {filename} type_ssim: {measure.type_ssim}")
 
 
-        writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/LOSS', loss_record/(opt.n_valimages*12), epoch)
+        writer.add_scalar(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/LOSS', loss_record/(opt.n_valimages*12), epoch)
 
-        writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/PSNR', psnr_record/(opt.n_valimages*12), epoch)
+        writer.add_scalar(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/PSNR', psnr_record/(opt.n_valimages*12), epoch)
 
-        writer.add_scalar(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
+        writer.add_scalar(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
 
         #psnr, ssim by type
         psnr_result = measure.get_psnr_result()
         ssim_result = measure.get_ssim_result()
-        writer.add_scalars(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/TYPE_PSNR', {'gwn':psnr_result['gwn'], 'gblur':psnr_result['gblur'], 'contrast':psnr_result['contrast'], 'fnoise':psnr_result['fnoise']}, epoch)
-        writer.add_scalars(f'part{opt.n_partition}/N_experts{len(opt.experts)}_LR{opt.lr}_Featuresize{opt.featuresize}_Patchsize{opt.patchsize}_{opt.comment}/VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
+        writer.add_scalars(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/TYPE_PSNR', {'gwn':psnr_result['gwn'], 'gblur':psnr_result['gblur'], 'contrast':psnr_result['contrast'], 'fnoise':psnr_result['fnoise']}, epoch)
+        writer.add_scalars(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
 
         print(f"Epoch[{epoch}] Image {filename} type_psnr_result: {psnr_result}")
         print(f"Epoch[{epoch}] Image {filename} type_ssim_result: {ssim_result}")
 
         scheduler.step(loss_record/(opt.n_valimages*12))      
 
-
+        #model save if you want
+        if opt.modelsave == 'True':
+            
+            torch.save({'feature_extractor_state_dict': module_sequence[module_sequence_keys[0]].state_dict(),
+                        'experts_state_dict': [net.state_dict() for net in module_sequence[module_sequence_keys[1]]],
+                        f'{module_sequence_keys[2]}_state_dict': module_sequence[module_sequence_keys[2]].state_dict(),
+                        'reconstructor_state_dict': module_sequence[module_sequence_keys[3]].state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'loss': val_loss, #validation loss in minibatch
+                        'epoch': epoch}, 
+                        PATH)
+            print('Model save: ', PATH)            
     epoch += 1
     
 
-    
+

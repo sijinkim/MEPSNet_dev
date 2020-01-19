@@ -57,4 +57,8 @@ class MoE_with_Gate(nn.Module):
 
 
     def take_modules(self):
-        return [self.feature_extractor, self.experts, self.gate, self.reconstructor]
+        sequence =  {'feature_extractor': self.feature_extractor, 
+                     'experts': self.experts, 
+                     'gate': self.gate, 
+                     'reconstructor': self.reconstructor}
+        return sequence
