@@ -98,7 +98,7 @@ print(module_sequence_keys)
 
 #set checkpoint path
 checkpoint_path = os.path.join('/home/tiwlsdi0306/workspace/snapshot/MoEIR_checkpoint', f'part{opt.n_partition}') 
-PATH = os.path.join(checkpoint_path, f'{opt.experts[0]}_{len(opt.experts)}_{module_sequence_keys[2]}.tar')
+PATH = os.path.join(checkpoint_path, f'{opt.experts[0]}_{len(opt.experts)}_{module_sequence_keys[2]}_{opt.comment}.tar')
 
 train_dataset = TrainDataset(size=opt.patchsize, n_partition=opt.n_partition)
 train_loader = DataLoader( train_dataset,
