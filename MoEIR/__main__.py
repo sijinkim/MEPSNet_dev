@@ -22,6 +22,7 @@ parser.add_argument('--n_noise', type=str, default='4', help='Number of noise - 
 parser.add_argument('--n_partition', type=str, default='2', help='Number of data partition - 2, 4, Mix')
 parser.add_argument('--n_valimages', type=int, default=5, help='Number of images using in validation phase')
 parser.add_argument('--datapath', type=str, default='/home/tiwlsdi0306/workspace/image_dataset/noiseInfo/')
+parser.add_argument('--n_worker', type=int, default=1)
 
 #train setting
 parser.add_argument('--patchsize', type=int, default=41)
@@ -104,6 +105,7 @@ train_dataset = TrainDataset(size=opt.patchsize, n_partition=opt.n_partition)
 train_loader = DataLoader( train_dataset,
 		                   batch_size=opt.batchsize,
 		                   drop_last=True,
+                           num_workers=opt.n_worker,
 		                   shuffle=True)
 print(f'Train dataset: part{opt.n_partition} distorted data - length of data: {len(train_dataset)}')
 
@@ -112,6 +114,7 @@ valid_dataset = ValidTestDataset(dataset=opt.dataset, n_partition=opt.n_partitio
 valid_loader = DataLoader( valid_dataset,
 		                   batch_size=1,
 		                   drop_last=True,
+                           num_workers=4,
 		                   shuffle=True)
 
 criterion = nn.MSELoss(reduction='sum')

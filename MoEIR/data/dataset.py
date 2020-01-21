@@ -24,30 +24,32 @@ class TrainDataset(data.Dataset):
     def __init__(self, size, n_partition):
         super(TrainDataset, self).__init__()
 
-        path = f'/home/tiwlsdi0306/workspace/image_dataset/DIV2K/part_distorted/DIV2K_part_distorted_train_part{n_partition}.h5'
+        self.path = f'/home/tiwlsdi0306/workspace/image_dataset/DIV2K/part_distorted/DIV2K_part_distorted_train_part{n_partition}.h5'
         self.size = size        
-
-        h5f = h5py.File(path, 'r')
-        groups = list(h5f.keys())
-        
-        self.data_ = h5f.get(groups[0])
-        self.target = h5f.get(groups[1])
         
         self.transform = transforms.Compose([transforms.ToTensor()])
         
     def __getitem__(self, index):
         size = self.size
         
-        try:
-            data_, target = random_crop(data = self.data_[str(index)][:,:,:], target = self.target[str(int(index//12))][:,:,:], size = size)
-        except KeyError:
-            print(f'[KeyError]index:{str(index)}, target index:{str(index//12)}')
-            raise KeyError
+        with h5py.File(self.path, 'r') as db:
+            groups = list(db.keys())
+            group_0 = db.get(groups[0])
+            group_1 = db.get(groups[1])
+
+            try:
+                data_, target = random_crop(data = group_0[str(index)][:,:,:], target = group_1[str(int(index//12))][:,:,:], size = size)
+            except KeyError:
+                print(f'[KeyError]index:{str(index)}, target index:{str(index//12)}')
+                raise KeyError
         
         return self.transform(data_), self.transform(target)
 
     def __len__(self):
-        return len(self.data_)
+        with h5py.File(self.path, 'r') as db:
+            groups = list(db.keys())
+            length = len(db[groups[0]])
+        return length
 
 class ValidTestDataset(data.Dataset):
     def __init__(self, dataset='DIV2K', n_partition=2, num_noise=4, num_images=5, type_='valid'):
