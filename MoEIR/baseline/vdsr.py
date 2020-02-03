@@ -18,19 +18,30 @@ class Conv_ReLU_Block(nn.Module):
         return output
 
 class VDSRNet(nn.Module):
-    def __init__(self, num_blocks=21):
+    def __init__(self, num_blocks=21, num_experts=1):
         super(VDSRNet, self).__init__()
-        self.blocks = num_blocks
-        self.residual_layer = self.make_layer(Conv_ReLU_Block, num_of_layer = self.blocks)
+        self.residual_layer = self.make_layer(Conv_ReLU_Block, num_of_layer=num_blocks * num_experts)
 
-        self.input = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.output = nn.Conv2d(in_channels=64, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
+        self.input = nn.Conv2d(in_channels=3, 
+                               out_channels=64,
+                               kernel_size=3, 
+                               stride=1, 
+                               padding=1, 
+                               bias=False)
+        self.output = nn.Conv2d(in_channels=64, 
+                                out_channels=3, 
+                                kernel_size=3, 
+                                stride=1, 
+                                padding=1, 
+                                bias=False)
         self.relu = nn.ReLU(inplace=True)
+
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
+
 
     def make_layer(self, block, num_of_layer):
         layers = []
@@ -45,4 +56,7 @@ class VDSRNet(nn.Module):
         output = self.output(output)
         out = torch.add(out, residual)
         return out
-         
+
+    def __repr__(self):
+        return f"{self.__module__.split('.')[-1].upper()} " \
+            f"<{self.__class__.__name__}>"
