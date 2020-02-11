@@ -24,7 +24,7 @@ class Conv_ReLU_Block(nn.Module):
  
 
 class FVDSRNet(nn.Module):
-    def __init__(self, feature_size=512, out_feature_size=64, kernel_size=3):
+    def __init__(self, feature_size=512, out_feature_size=64, kernel_size=3, num_of_layer=14):
         super(FVDSRNet, self).__init__()
         self.kernel = kernel_size
         padding = 0
@@ -39,11 +39,12 @@ class FVDSRNet(nn.Module):
         else:
             raise ValueError
 
+        self.layers = num_of_layer
         self.conv_block = self.make_layer(Conv_ReLU_Block(in_channels = out_feature_size, 
                                                           out_channels = out_feature_size, 
                                                           kernel_size = self.kernel, 
                                                           stride = 1, 
-                                                          padding = padding), num_of_layer = 14)
+                                                          padding = padding), num_of_layer=self.layers)
         self.input = nn.Conv2d(in_channels = feature_size,
                                out_channels = out_feature_size,
                                kernel_size = 1,
@@ -170,6 +171,7 @@ class FEDSRNet(nn.Module):
         output = self.output(output)
         output = torch.add(output, residual)
         return output
+        #TODO: Need test the order of 'torch.add'. before self.output
 
 
     def __repr__(self):
