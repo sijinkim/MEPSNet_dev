@@ -32,7 +32,7 @@ parser.add_argument('--ex_featuresize', type=int, default=64)
 parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--weightdecay', type=float, default=1e-4)
 parser.add_argument('--gpu', type=int, default=None)
-
+parser.add_argument('--cpu', action='store_true', help="Use CPU only")
 #snapshot
 parser.add_argument('--modelsave', type=str, default='False', help='True: save models, False: not save models')
 
@@ -106,6 +106,7 @@ train_loader = DataLoader( train_dataset,
 		                   batch_size=opt.batchsize,
 		                   drop_last=True,
                            num_workers=opt.n_worker,
+                           pin_memory=not opt.cpu,
 		                   shuffle=True)
 print(f'Train dataset: part{opt.n_partition} distorted data - length of data: {len(train_dataset)}')
 
@@ -114,7 +115,8 @@ valid_dataset = ValidTestDataset(dataset=opt.dataset, n_partition=opt.n_partitio
 valid_loader = DataLoader( valid_dataset,
 		                   batch_size=1,
 		                   drop_last=True,
-                           num_workers=4,
+                           num_workers=opt.n_worker,
+                           pin_memory=not opt.cpu,
 		                   shuffle=True)
 
 criterion = nn.MSELoss(reduction='sum')
