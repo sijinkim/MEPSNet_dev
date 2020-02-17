@@ -57,7 +57,7 @@ else:
 
 
 #set tensorboardX writer
-writer = SummaryWriter(log_dir=f'/home/tiwlsdi0306/workspace/MoEIR_runs/part{opt.n_partition}')
+writer = SummaryWriter(log_dir=os.path.join(f'/home/tiwlsdi0306/workspace/MoEIR_compare_runs/part{opt.n_partition}', f'{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.featuresize}_{opt.comment}'))
 
 #set seed for train
 torch.manual_seed(0)
@@ -161,7 +161,7 @@ while True:
         loss.backward()
         optimizer.step()
     
-    writer.add_scalar(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/TRAIN/LOSS', cost/(len(train_dataset)//opt.batchsize), epoch) 
+    writer.add_scalar(f'TRAIN/LOSS', cost/(len(train_dataset)//opt.batchsize), epoch) 
 
 
 
@@ -230,17 +230,17 @@ while True:
                 measure.get_ssim(x=result_array, ref=ref_array, image_name=filename) 
 
 
-        writer.add_scalar(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/LOSS', loss_record/(opt.n_valimages*12), epoch)
+        writer.add_scalar(f'VALID/LOSS', loss_record/(opt.n_valimages*12), epoch)
 
-        writer.add_scalar(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/PSNR', psnr_record/(opt.n_valimages*12), epoch)
+        writer.add_scalar(f'VALID/PSNR', psnr_record/(opt.n_valimages*12), epoch)
 
-        writer.add_scalar(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
+        writer.add_scalar(f'VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
 
         #psnr, ssim by type
         psnr_result = measure.get_psnr_result()
         ssim_result = measure.get_ssim_result()
-        writer.add_scalars(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/TYPE_PSNR', {'gwn':psnr_result['gwn'], 'gblur':psnr_result['gblur'], 'contrast':psnr_result['contrast'], 'fnoise':psnr_result['fnoise']}, epoch)
-        writer.add_scalars(f'part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_{opt.comment}/VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
+        writer.add_scalars(f'VALID/TYPE_PSNR', {'gwn':psnr_result['gwn'], 'gblur':psnr_result['gblur'], 'contrast':psnr_result['contrast'], 'fnoise':psnr_result['fnoise']}, epoch)
+        writer.add_scalars(f'VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
 
         print(f"Epoch[{epoch}] Image {filename} type_psnr_result: {psnr_result}")
         print(f"Epoch[{epoch}] Image {filename} type_ssim_result: {ssim_result}")
