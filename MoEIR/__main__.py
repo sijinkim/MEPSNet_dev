@@ -161,7 +161,9 @@ while True:
         loss.backward()
         optimizer.step()
     
-    writer.add_scalar(f'TRAIN/LOSS', cost/(len(train_dataset)//opt.batchsize), epoch) 
+#    writer.add_scalar(f'TRAIN/LOSS', cost/(len(train_dataset)//opt.batchsize), epoch) 
+    writer.add_scalar(f'TRAIN/LOSS', cost/len(train_loader), epoch) 
+
 
 
 
@@ -175,7 +177,7 @@ while True:
         
         with torch.no_grad():
             val_criterion = nn.MSELoss(reduction='sum')
-            loss_record = 0
+            #loss_record = 0
             for step, (data, ref, filename) in enumerate(valid_loader):
                 ref = ref.squeeze(0).to(device)
                 filename = str(filename)[2:-3]
@@ -230,11 +232,14 @@ while True:
                 measure.get_ssim(x=result_array, ref=ref_array, image_name=filename) 
 
 
-        writer.add_scalar(f'VALID/LOSS', loss_record/(opt.n_valimages*12), epoch)
+#        writer.add_scalar(f'VALID/LOSS', loss_record/(opt.n_valimages*12), epoch)
+#        writer.add_scalar(f'VALID/PSNR', psnr_record/(opt.n_valimages*12), epoch)
+#        writer.add_scalar(f'VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
 
-        writer.add_scalar(f'VALID/PSNR', psnr_record/(opt.n_valimages*12), epoch)
+        writer.add_scalar(f'VALID/LOSS', loss_record/len(valid_loader), epoch)
+        writer.add_scalar(f'VALID/PSNR', psnr_record/len(valid_loader), epoch)
+        writer.add_scalar(f'VALID/SSIM', ssim_record/len(valid_loader), epoch)
 
-        writer.add_scalar(f'VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
 
         #psnr, ssim by type
         psnr_result = measure.get_psnr_result()
@@ -242,8 +247,6 @@ while True:
         writer.add_scalars(f'VALID/TYPE_PSNR', {'gwn':psnr_result['gwn'], 'gblur':psnr_result['gblur'], 'contrast':psnr_result['contrast'], 'fnoise':psnr_result['fnoise']}, epoch)
         writer.add_scalars(f'VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
 
-        print(f"Epoch[{epoch}] Image {filename} type_psnr_result: {psnr_result}")
-        print(f"Epoch[{epoch}] Image {filename} type_ssim_result: {ssim_result}")
 
         scheduler.step(loss_record/(opt.n_valimages*12))      
 
