@@ -180,7 +180,7 @@ while True:
             #loss_record = 0
             for step, (data, ref, filename) in enumerate(valid_loader):
                 ref = ref.squeeze(0).to(device)
-                filename = str(filename)[2:-3]
+                filename = str(filename)[2:-2]
                 
                 result_patch = []
                 for patch_idx, patch in enumerate(data):
