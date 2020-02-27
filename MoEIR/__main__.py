@@ -9,7 +9,9 @@ from tensorboardX import SummaryWriter
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+#from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import MultiStepLR
+
 from torch.utils.data import DataLoader
 
 from MoEIR.data import TrainDataset, ValidTestDataset
@@ -34,7 +36,8 @@ parser.add_argument('--weightdecay', type=float, default=1e-4)
 parser.add_argument('--gpu', type=int, default=None)
 parser.add_argument('--cpu', action='store_true', help="Use CPU only")
 #snapshot
-parser.add_argument('--modelsave', type=str, default='False', help='True: save models, False: not save models')
+parser.add_argument('--modelsave', action='store_true', help='True: save models, False: not save models')
+parser.add_argument('--valid_term', type=int, defulat=10, help='Set saving models and validation test term')
 
 #modules
 parser.add_argument('--feature_extractor', type=str, default='base')
@@ -69,24 +72,30 @@ if opt.gate:
     from MoEIR.modules import MoE_with_Gate
 
     train_sequence = MoE_with_Gate(device=device,
+                                   patch_size=opt.patchsize,
                                    feature_size=opt.featuresize,
                                    expert_feature_size=opt.ex_featuresize,
                                    gate=opt.gate,
                                    n_experts=len(opt.experts),
                                    kernel_size=opt.kernelsize,
                                    experts_type=opt.experts[0],
-                                   batch_size=opt.batchsize)        
+                                   batch_size=opt.batchsize,
+                                   args=opt)        
+
+
 
 elif opt.attention:
     from MoEIR.modules import MoE_with_Attention
     
     train_sequence = MoE_with_Attention(device=device,
+                                        patch_size=opt.patchsize,
                                         feature_size=opt.featuresize,
                                         expert_feature_size=opt.ex_featuresize,
                                         n_experts=len(opt.experts),
                                         kernel_size=opt.kernelsize,
                                         experts_type=opt.experts[0],
-                                        batch_size=opt.batchsize)
+                                        batch_size=opt.batchsize,
+                                        args=opt)
 else:
     raise ValueError
 
@@ -106,7 +115,7 @@ train_loader = DataLoader( train_dataset,
 		                   batch_size=opt.batchsize,
 		                   drop_last=True,
                            num_workers=opt.n_worker,
-                           pin_memory=not opt.cpu,
+                           #pin_memory=not opt.cpu,
 		                   shuffle=True)
 print(f'Train dataset: part{opt.n_partition} distorted data - length of data: {len(train_dataset)}')
 
@@ -116,7 +125,7 @@ valid_loader = DataLoader( valid_dataset,
 		                   batch_size=1,
 		                   drop_last=True,
                            num_workers=opt.n_worker,
-                           pin_memory=not opt.cpu,
+                           #pin_memory=not opt.cpu,
 		                   shuffle=True)
 
 criterion = nn.MSELoss(reduction='sum')
@@ -128,15 +137,13 @@ optimizer = optim.Adam(
     weight_decay=opt.weightdecay,
     lr=opt.lr
 )
-scheduler = ReduceLROnPlateau(
-    optimizer=optimizer, 
-    mode='min',
-    factor=0.1, 
-    verbose=True)
-print('LOSS: MSE loss, optimizer: Adam, Using scheduler')
+
+scheduler = MultiStepLR(optimizer, milestones=[200, 500], gamma=0.5)
+print('LOSS: MSE loss, optimizer: Adam, Using MultiStepLR scheduler[200,500]')
 
 print("Start Training")
 epoch = 1
+loss_record = 0
 
 while True:
     print(f"Epoch={epoch}, lr={optimizer.param_groups[0]['lr']}/ expert lr = {optimizer.param_groups[1]['lr']}")
@@ -163,24 +170,23 @@ while True:
     
 #    writer.add_scalar(f'TRAIN/LOSS', cost/(len(train_dataset)//opt.batchsize), epoch) 
     writer.add_scalar(f'TRAIN/LOSS', cost/len(train_loader), epoch) 
-
+    loss_record = loss
 
 
 
     #Validation 
-    if epoch % 10 == 0:
+    if epoch % opt.val_term == 0:
         #set measure
         measure = PSNR_SSIM_by_type(dataset=opt.dataset, num_partition=opt.n_partition, phase_type='valid')
-        loss_record, psnr_record, ssim_record = 0, 0, 0        
+        psnr_record = 0
+        #ssim_record = 0
 
         print(f'[EPOCH{epoch}] Validation\n dataset: {opt.dataset} part{opt.n_partition} distorted data')
         
         with torch.no_grad():
-            val_criterion = nn.MSELoss(reduction='sum')
-            #loss_record = 0
             for step, (data, ref, filename) in enumerate(valid_loader):
-                ref = ref.squeeze(0).to(device)
-                filename = str(filename)[2:-2]
+                ref = ref.squeeze(0) #torch.Tensor [3, h, w]
+                filename = str(filename)[2:-3]
                 
                 result_patch = []
                 for patch_idx, patch in enumerate(data):
@@ -193,72 +199,61 @@ while True:
                 h_quarter, w_quarter = int(h_half/2), int(w_half/2)
                 h_shave, w_shave = int(h_quarter/2), int(w_quarter/2)
                 h_chop, w_chop = h_half + h_shave, w_quarter + w_shave
+                
+                for idx in range(len(result_patch)):
+                    result_patch[idx] = result_patch[idx].cpu().mul(255).clamp(0,255).byte().permute(1,2,0).numpy() #h x w x 3
 
-                result = torch.FloatTensor(3, h, w)
-                result[:, 0:h_half, 0:w_quarter].copy_(result_patch[0][:, 0:h_half, 0:w_quarter])
-                result[:, 0:h_half, w_quarter:w_half].copy_(result_patch[1][:, 0:h_half, 0:w_quarter])  
-                result[:, 0:h_half, w_half:w-w_quarter].copy_(result_patch[2][:, 0:h_half, 0:w_quarter])
-                result[:, 0:h_half, w-w_quarter:w].copy_(result_patch[3][:, 0:h_half, w_shave:w_chop])
-                result[:, h_half:h, 0:w_quarter].copy_(result_patch[4][:, h_shave:h_chop, 0:w_quarter])  
-                result[:, h_half:h, w_quarter:w_half].copy_(result_patch[5][:, h_shave:h_chop, 0:w_quarter])  
-                result[:, h_half:h, w_half:w-w_quarter].copy_(result_patch[6][:, h_shave:h_chop, 0:w_quarter])
-                result[:, h_half:h, w-w_quarter:w].copy_(result_patch[7][:, h_shave:h_chop, w_shave:w_chop])
-
-
-                #Evaluate MSE loss
-                val_loss = val_criterion(result.to(device), ref)
-                loss_record += val_loss
-                #Evaluate LPIPS
-
-
+                result = np.ndarray(shape=(h, w, 3))
+                result[0:h_half, 0:w_quarter, :] = result_patch[0][0:h_half, 0:w_quarter, :]
+                result[0:h_half, w_quarter:w_half, :] = result_patch[1][0:h_half, 0:w_quarter, :]  
+                result[0:h_half, w_half:w-w_quarter, :] = result_patch[2][0:h_half, 0:w_quarter, :]
+                result[0:h_half, w-w_quarter:w, :] = result_patch[3][0:h_half, w_shave:w_chop, :]
+                result[h_half:h, 0:w_quarter, :] = result_patch[4][h_shave:h_chop, 0:w_quarter, :]
+                result[h_half:h, w_quarter:w_half, :] = result_patch[5][h_shave:h_chop, 0:w_quarter, :]
+                result[h_half:h, w_half:w-w_quarter, :] = result_patch[6][h_shave:h_chop, 0:w_quarter, :]
+                result[h_half:h, w-w_quarter:w, :] = result_patch[7][h_shave:h_chop, w_shave:w_chop, :]
                 #Evaluate PSNR
-                result_array = result.cpu().mul(255).clamp(0,255).byte().permute(1,2,0).numpy()
-                ref_array = ref.cpu().mul(255).clamp(0,255).byte().permute(1,2,0).numpy()
+                ref_array = ref.mul(255).clamp(0,255).byte().permute(1,2,0).numpy()
 
                 min_val, max_val = 0, 255
-                result_array = (result_array.astype(np.float64) - min_val) / (max_val-min_val)
+                result_array = (result.astype(np.float64) - min_val) / (max_val-min_val)
                 ref_array = (ref_array.astype(np.float64) - min_val) / (max_val-min_val)
 
                 psnr_ = psnr(ref_array, result_array, data_range=1)
                 #Evaluate SSIM
-                ssim_ = ssim(ref_array, result_array, data_range=1, multichannel=True)
-                print(f"Epoch[{epoch}/{step}] Image {filename} LOSS:{format(val_loss,'.3f')}, PSNR:{format(psnr_,'.3f')}, SSIM: {format(ssim_,'.3f')}") 
+                #ssim_ = ssim(ref_array, result_array, data_range=1, multichannel=True)
+                print(f"Epoch[{epoch}/{step}] Image {filename}, PSNR:{format(psnr_,'.3f')}") 
  
                 psnr_record += psnr_
-                ssim_record += ssim_
+                #ssim_record += ssim_
                 
                 #Evaluate PSNR, SSIM by type
                 measure.get_psnr(x=result_array, ref=ref_array, image_name=filename)
-                measure.get_ssim(x=result_array, ref=ref_array, image_name=filename) 
+                #measure.get_ssim(x=result_array, ref=ref_array, image_name=filename) 
 
 
-#        writer.add_scalar(f'VALID/LOSS', loss_record/(opt.n_valimages*12), epoch)
-#        writer.add_scalar(f'VALID/PSNR', psnr_record/(opt.n_valimages*12), epoch)
-#        writer.add_scalar(f'VALID/SSIM', ssim_record/(opt.n_valimages*12), epoch)
-
-        writer.add_scalar(f'VALID/LOSS', loss_record/len(valid_loader), epoch)
         writer.add_scalar(f'VALID/PSNR', psnr_record/len(valid_loader), epoch)
-        writer.add_scalar(f'VALID/SSIM', ssim_record/len(valid_loader), epoch)
+        #writer.add_scalar(f'VALID/SSIM', ssim_record/len(valid_loader), epoch)
 
 
         #psnr, ssim by type
         psnr_result = measure.get_psnr_result()
-        ssim_result = measure.get_ssim_result()
+        #ssim_result = measure.get_ssim_result()
         writer.add_scalars(f'VALID/TYPE_PSNR', {'gwn':psnr_result['gwn'], 'gblur':psnr_result['gblur'], 'contrast':psnr_result['contrast'], 'fnoise':psnr_result['fnoise']}, epoch)
-        writer.add_scalars(f'VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
+        #writer.add_scalars(f'VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
 
 
-        scheduler.step(loss_record/(opt.n_valimages*12))      
+        scheduler.step()      
 
         #model save if you want
-        if opt.modelsave == 'True':
+        if opt.modelsave:
             
             torch.save({'feature_extractor_state_dict': module_sequence[module_sequence_keys[0]].state_dict(),
                         'experts_state_dict': [net.state_dict() for net in module_sequence[module_sequence_keys[1]]],
                         f'{module_sequence_keys[2]}_state_dict': module_sequence[module_sequence_keys[2]].state_dict(),
                         'reconstructor_state_dict': module_sequence[module_sequence_keys[3]].state_dict(),
                         'optimizer_state_dict': optimizer.state_dict(),
-                        'loss': val_loss, #validation loss in minibatch
+                        'train_loss':loss_record ,
                         'epoch': epoch}, 
                         PATH)
             print('Model save: ', PATH)            
