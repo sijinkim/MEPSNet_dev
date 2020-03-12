@@ -5,25 +5,31 @@ from MoEIR.modules import FeatureNet
 from MoEIR.modules import FVDSRNet, FEDSRNet
 from MoEIR.modules import AttentionNet 
 from MoEIR.modules import ReconstructNet_with_CWA
-
+from MoEIR.modules import GAP_GMP_AttentionNet
 
 class MoE_with_Attention(nn.Module):
-    def __init__(self, device, feature_size, expert_feature_size, n_experts, kernel_size, experts_type, batch_size):
+    def __init__(self, device, n_experts, args):
         super(MoE_with_Attention, self).__init__()
         
-        self.batch = batch_size
         self.n_experts = n_experts
-
-        self.feature_extractor = FeatureNet(feature_size=feature_size).to(device)
+        self.feature_extractor = FeatureNet(feature_size=args.featuresize).to(device)
         
-        self.attention = AttentionNet(feature_size= expert_feature_size, num_experts=n_experts).to(device)
-        self.reconstructor = ReconstructNet_with_CWA(in_channels=expert_feature_size, out_channels=3, num_experts=n_experts).to(device) 
+        self.reconstructor = ReconstructNet_with_CWA(in_channels=args.ex_featuresize, out_channels=3, num_experts=n_experts).to(device) 
+        
+        if args.multi_attention:
+            self.attention = GAP_GMP_AttentionNet(feature_size=args.ex_featuresize, num_experts=n_experts, gmp_k=args.gmp_k).to(device)
+        elif not args.multi_attention:
+            self.attention = AttentionNet(feature_size= args.ex_featuresize, num_experts=n_experts).to(device)
+        else: 
+            print(f"ValueError: multi_attention {args.multi_attention}") 
+            raise ValueError        
+   
 
-        ex_type = experts_type
+        ex_type = args.experts[0]
         if ex_type == 'fvdsr':
-            self.experts = [FVDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size, kernel_size=kernel_size[i]).to(device) for i in range(0, n_experts)]
+            self.experts = [FVDSRNet(feature_size=args.featuresize, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[i]).to(device) for i in range(0, n_experts)]
         elif ex_type == 'fedsr':
-            self.experts = [FEDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size, kernel_size=kernel_size[i]).to(device) for i in range(0, n_experts)]
+            self.experts = [FEDSRNet(feature_size=args.featuresize, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[i]).to(device) for i in range(0, n_experts)]
         else:
             raise ValueError
             

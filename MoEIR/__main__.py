@@ -35,9 +35,10 @@ parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--weightdecay', type=float, default=1e-4)
 parser.add_argument('--gpu', type=int, default=None)
 parser.add_argument('--cpu', action='store_true', help="Use CPU only")
+parser.add_argument('--val_term', type=int, default=10, help='Set saving models and validation test term')
+
 #snapshot
 parser.add_argument('--modelsave', action='store_true', help='True: save models, False: not save models')
-parser.add_argument('--valid_term', type=int, defulat=10, help='Set saving models and validation test term')
 
 #modules
 parser.add_argument('--feature_extractor', type=str, default='base')
@@ -45,7 +46,9 @@ parser.add_argument('experts', type=str, nargs='+')
 parser.add_argument('--kernelsize', type=int, nargs='*', help='Must match the length with the number of experts. (take 1, 3, 5, or 7)')
 parser.add_argument('--gate', type=str, help='Take gmp or gap')
 parser.add_argument('--reconstructor', type=str, default='ReconstructNet')
-parser.add_argument('--attention', type=str, help='The base is AttentionNet')
+parser.add_argument('--attention', action='store_true', help='Use Attention method')
+parser.add_argument('--multi_attention', action='store_true', help='Use GMP+GAP attention')
+parser.add_argument('--gmp_k', type=int, default=10, help='number of GMP classes')
 
 parser.add_argument('--comment', type=str, help='GATE or ATTENTION - using in writer(tebsorboard)')
 opt = parser.parse_args()
@@ -72,14 +75,7 @@ if opt.gate:
     from MoEIR.modules import MoE_with_Gate
 
     train_sequence = MoE_with_Gate(device=device,
-                                   patch_size=opt.patchsize,
-                                   feature_size=opt.featuresize,
-                                   expert_feature_size=opt.ex_featuresize,
-                                   gate=opt.gate,
                                    n_experts=len(opt.experts),
-                                   kernel_size=opt.kernelsize,
-                                   experts_type=opt.experts[0],
-                                   batch_size=opt.batchsize,
                                    args=opt)        
 
 
@@ -88,13 +84,7 @@ elif opt.attention:
     from MoEIR.modules import MoE_with_Attention
     
     train_sequence = MoE_with_Attention(device=device,
-                                        patch_size=opt.patchsize,
-                                        feature_size=opt.featuresize,
-                                        expert_feature_size=opt.ex_featuresize,
                                         n_experts=len(opt.experts),
-                                        kernel_size=opt.kernelsize,
-                                        experts_type=opt.experts[0],
-                                        batch_size=opt.batchsize,
                                         args=opt)
 else:
     raise ValueError

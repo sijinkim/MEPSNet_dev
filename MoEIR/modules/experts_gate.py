@@ -6,30 +6,30 @@ from MoEIR.modules import FVDSRNet, FEDSRNet
 from MoEIR.modules import ReconstructNet
 
 class MoE_with_Gate(nn.Module):
-    def __init__(self, device, feature_size, expert_feature_size, gate, n_experts, kernel_size, experts_type, batch_size):
+    def __init__(self, device, n_experts, args):
         super(MoE_with_Gate, self).__init__()
 
-        self.batch = batch_size
+        self.batch = args.batchsize
         self.n_experts = n_experts
         
-        self.feature_extractor = FeatureNet(feature_size=feature_size).to(device) 
-        self.reconstructor = ReconstructNet(in_channels=expert_feature_size, out_channels=3).to(device)
+        self.feature_extractor = FeatureNet(feature_size=args.featuresize).to(device) 
+        self.reconstructor = ReconstructNet(in_channels=args.ex_featuresize, out_channels=3).to(device)
 
-        ex_type = experts_type
+        ex_type = args.experts[0]
         if ex_type == 'fvdsr':
-            self.experts = [FVDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size, kernel_size=kernel_size[i]).to(device) for i in range(0, n_experts)]
+            self.experts = [FVDSRNet(feature_size=args.featuresize, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[i]).to(device) for i in range(0, n_experts)]
         elif ex_type == 'fedsr':
-            self.experts = [FEDSRNet(feature_size=feature_size, out_feature_size=expert_feature_size, kernel_size=kernel_size[i]).to(device) for i in range(0, n_experts)]
+            self.experts = [FEDSRNet(feature_size=args.featuresize, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[i]).to(device) for i in range(0, n_experts)]
         else:
             raise ValueError 
 
-        gate_key = gate
+        gate_key = args.gate
         if gate_key == 'gmp':
             from MoEIR.modules import GMP_GateNet
-            self.gate = GMP_GateNet(in_feature_size=feature_size, out_feature_size=expert_feature_size, num_experts=n_experts).to(device)
+            self.gate = GMP_GateNet(in_feature_size=args.featuresize, out_feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
         elif gate_key == 'gap':
             from MoEIR.module import GAP_GateNet
-            self.gate = GAP_GateNet(in_feature_size=feature_size, out_feature_size=expert_feature_size, num_experts=n_experts).to(device)
+            self.gate = GAP_GateNet(in_feature_size=args.featuresize, out_feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
         else:
             raise ValueError
 
