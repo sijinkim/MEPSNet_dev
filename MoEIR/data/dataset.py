@@ -2,7 +2,7 @@ import os
 import h5py
 import glob
 import random
-import numpy as npe
+import numpy as np
 import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 
 
-def random_crop(data, target, size=41):
+def random_crop(data, target, size):
     h, w = data.shape[:-1]
     x = random.randint(0, w-size)
     y = random.randint(0, h-size)
@@ -20,6 +20,9 @@ def random_crop(data, target, size=41):
 
     return crop_data, crop_target
 
+def ToTensorWithoutScaling(data):
+    return torch.FloatTensor(np.array(data)).permute(2,0,1)
+
 class TrainDataset(data.Dataset):
     def __init__(self, size, n_partition):
         super(TrainDataset, self).__init__()
@@ -27,7 +30,7 @@ class TrainDataset(data.Dataset):
         self.path = f'/home/tiwlsdi0306/workspace/image_dataset/DIV2K/part_distorted/DIV2K_part_distorted_train_part{n_partition}.h5'
         self.size = size        
         
-        self.transform = transforms.Compose([transforms.ToTensor()])
+        #self.transform = transforms.Compose([transforms.ToTensor()])
         
     def __getitem__(self, index):
         size = self.size
@@ -43,7 +46,8 @@ class TrainDataset(data.Dataset):
                 print(f'[KeyError]index:{str(index)}, target index:{str(index//12)}')
                 raise KeyError
         
-        return self.transform(data_), self.transform(target)
+        #return self.transform(data_), self.transform(target)
+        return ToTensorWithoutScaling(data_), ToTensorWithoutScaling(target)        
 
     def __len__(self):
         with h5py.File(self.path, 'r') as db:
@@ -76,16 +80,17 @@ class ValidTestDataset(data.Dataset):
         self.data_ = self.data_[:num_images * 12]
         self.target = self.target[:num_images]
         
-        self.transform = transforms.Compose([transforms.ToTensor()])
+        #self.transform = transforms.Compose([transforms.ToTensor()])
 
     def __getitem__(self, index):
         data_ = Image.open(self.data_[index])
         target = Image.open(self.target[index//12])
         filename = self.data_[index].split('/')[-1] #e.g. ('0801_11.png'),
         
-        data_ = self.transform(data_.convert('RGB'))
-        target = self.transform(target.convert('RGB'))
+        data_ = ToTensorWithoutScaling(data_.convert('RGB'))
+        target = ToTensorWithoutScaling(target.convert('RGB'))
         
+
         h, w = data_.size()[1:]
 	
         h_half, w_half = int(h/2), int(w/2)
