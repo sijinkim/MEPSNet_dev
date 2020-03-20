@@ -38,7 +38,7 @@ class SResidual_Block(nn.Module):
 
 
 class SFEDSRNet(nn.Module):
-    def __init__(self, bank, feature_size=512, out_feature_size=64, n_resblocks=7, n_templates=4):
+    def __init__(self, bank, feature_size=256, out_feature_size=64, n_resblocks=7, n_templates=4):
         super(SFEDSRNet, self).__init__()
 
         layers_per_bank = n_resblocks * 2 # Residual bock has 2 convolution layers
@@ -59,20 +59,13 @@ class SFEDSRNet(nn.Module):
                                padding=(kernel_size//2),
                                bias=True)
 
- 
-#        for m in self.modules():
-#            if isinstance(m, nn.Conv2d):
-#                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-#                m.weight.data.normal_(0, math.sqrt(2. / n))
-
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 init.kaiming_normal_(m.weight)
+       
         coefficient_inits = torch.zeros((layers_per_bank, n_templates, 1,1,1,1))
         nn.init.orthogonal_(coefficient_inits)
         for i in range(0, n_resblocks):
-            #sconv_group = filter(lambda name, module: isinstance(module, SConv2d) and "res_block" in name, self.named_modules())
-            #for j, (name, module) in enumerate(sconv_group): module.coefficients.data = coefficient_inits[i]
             self.res_block[i].conv1.coefficients.data = coefficient_inits[i*2]
             self.res_block[i].conv2.coefficients.data = coefficient_inits[(i*2)+1]
         
