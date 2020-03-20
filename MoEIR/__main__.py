@@ -168,11 +168,12 @@ while True:
         #ssim_record = 0
 
         print(f'[EPOCH{epoch}] Validation\n dataset: {opt.dataset} part{opt.n_partition} distorted data')
-        
+        import pdb
+        pdb.set_trace()
         with torch.no_grad():
             for step, (data, ref, filename) in enumerate(valid_loader):
                 ref = ref.squeeze(0) #torch.Tensor [3, h, w]
-                filename = str(filename)[2:-3]
+                filename = str(filename)[2:-2]
                 
                 result_patch = []
                 for patch_idx, patch in enumerate(data):
