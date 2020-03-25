@@ -43,14 +43,18 @@ parser.add_argument('--resultsave', action='store_true')
 #modules
 parser.add_argument('--feature_extractor', type=str, default='base')
 parser.add_argument('experts', type=str, nargs='+')
-parser.add_argument('--n_resblock', type=int, default=7, help='number of residual bocks in experts network')
+parser.add_argument('--n_resblock', type=int, default=7, help='number of residual bocks in experts network(default: 7)')
 parser.add_argument('--n_template', type=int, default=4, help='number of templates per bank')
 parser.add_argument('--kernelsize', type=int, nargs='*', help='Must match the length with the number of experts. (take 1, 3, 5, or 7)')
 parser.add_argument('--gate', type=str, help='Take gmp or gap')
 parser.add_argument('--reconstructor', type=str, default='ReconstructNet')
 parser.add_argument('--attention', action='store_true', help='Use Attention method')
 parser.add_argument('--multi_attention', action='store_true', help='Use GMP+GAP attention')
+parser.add_argument('--no_attention', action='store_true', help='Remove attention module')
 parser.add_argument('--gmp_k', type=int, default=10, help='number of GMP classes')
+parser.add_argument('--res_scale', type=float, default=1.0, help='Set 0.1 scaler if the expert feature size is more than 64')
+parser.add_argument('--lite_feature', action='store_true', help='Use lite version(only one Conv) feature extractNet')
+parser.add_argument('--lite_reconst', action='store_true', help='Use lite version(only one Conv) reconstructNet')
 
 parser.add_argument('--comment', type=str, help='GATE or ATTENTION - using in writer(tebsorboard)')
 opt = parser.parse_args()
@@ -78,8 +82,15 @@ if opt.gate:
     train_sequence = MoE_with_Gate(device=device,n_experts=len(opt.experts),args=opt)        
 
 elif opt.attention:
-    from MoEIR.modules import MoE_with_Template
-    train_sequence = MoE_with_Template(device=device, n_experts=len(opt.experts), args=opt)
+    if not opt.no_attention:
+        from MoEIR.modules import MoE_with_Template
+        train_sequence = MoE_with_Template(device=device, n_experts=len(opt.experts), args=opt)
+    
+    elif opt.no_attention:
+        from MoEIR.modules import MoE_with_Template_without_CWA
+        train_sequence = MoE_with_Template_without_CWA(device=device, n_experts=len(opt.experts), args=opt)
+    else:
+        raise ValueError
 
 else:
     raise ValueError
@@ -115,9 +126,9 @@ valid_loader = DataLoader( valid_dataset,
 		                   shuffle=True)
 
 if opt.loss == 'MSE':
-    criterion = nn.MSELoss(reduction='sum')
+    criterion = nn.MSELoss()
 elif opt.loss == 'L1':
-    criterion = nn.L1Loss(reduction='sum')
+    criterion = nn.L1Loss()
     
 
 optimizer = optim.Adam(
@@ -136,7 +147,7 @@ loss_record = 0
 
 while True:
     print(f"Epoch={epoch}, lr={optimizer.param_groups[0]['lr']}/ expert lr = {optimizer.param_groups[1]['lr']}")
-    cost = 0
+    loss_sum = 0
     for index, (data, ref) in enumerate(train_loader):
         optimizer.zero_grad()
     
@@ -149,14 +160,14 @@ while True:
         #Calculate loss
         loss = criterion(outputs, ref) #per batch
 
-        print(f'Epoch[{epoch}/{index}] Ours Loss: {format(loss/opt.batchsize, ".3f")}')
-        cost += loss #per epoch
+        print(f'Epoch[{epoch}/{index}] Ours Loss: {format(loss, ".3f")}')
+        loss_sum += loss #per epoch
         
         #back propagation
         loss.backward()
         optimizer.step()
     
-    writer.add_scalar(f'TRAIN/LOSS', cost/len(train_loader), epoch) 
+    writer.add_scalar(f'TRAIN/LOSS', loss_sum/(len(train_loader)/opt.batchsize), epoch) 
     loss_record = loss
 
 
@@ -168,8 +179,6 @@ while True:
         #ssim_record = 0
 
         print(f'[EPOCH{epoch}] Validation\n dataset: {opt.dataset} part{opt.n_partition} distorted data')
-        import pdb
-        pdb.set_trace()
         with torch.no_grad():
             for step, (data, ref, filename) in enumerate(valid_loader):
                 ref = ref.squeeze(0) #torch.Tensor [3, h, w]
@@ -238,7 +247,7 @@ while True:
                         f'{module_sequence_keys[2]}_state_dict': module_sequence[module_sequence_keys[2]].state_dict(),
                         'reconstructor_state_dict': module_sequence[module_sequence_keys[3]].state_dict(),
                         'optimizer_state_dict': optimizer.state_dict(),
-                        'train_loss':loss_record ,
+                        'train_loss':loss_record, #last train batch loss
                         'epoch': epoch}, 
                         PATH)
             print('Model save: ', PATH)            

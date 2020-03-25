@@ -31,3 +31,14 @@ class AttentionNet(nn.Module):
     def __repr__(self):
         return f"{self.__module__.split('.')[-1].upper()} " \
             f"<{self.__class__.__name__}>"
+
+class PassNet(nn.Module):
+    def __init__(self):
+        super(PassNet, self).__init__()
+
+    def forward(self, x):
+        return x
+    
+    def __repr__(self):
+        return f"{self.__module__.split('.')[-1].upper()} " \
+            f"<{self.__class__.__name__}>"

@@ -4,7 +4,7 @@ import torch.nn as nn
 from MoEIR.modules import FeatureNet
 from MoEIR.modules import FVDSRNet, FEDSRNet
 from MoEIR.modules import AttentionNet 
-from MoEIR.modules import ReconstructNet_with_CWA
+from MoEIR.modules import ReconstructNet
 from MoEIR.modules import GAP_GMP_AttentionNet
 
 class MoE_with_Attention(nn.Module):
@@ -14,7 +14,7 @@ class MoE_with_Attention(nn.Module):
         self.n_experts = n_experts
         self.feature_extractor = FeatureNet(feature_size=args.featuresize).to(device)
         
-        self.reconstructor = ReconstructNet_with_CWA(in_channels=args.ex_featuresize, out_channels=3, num_experts=n_experts).to(device) 
+        self.reconstructor = ReconstructNet(in_channels=args.ex_featuresize, out_channels=3, num_experts=n_experts).to(device) 
         
         if args.multi_attention:
             self.attention = GAP_GMP_AttentionNet(feature_size=args.ex_featuresize, num_experts=n_experts, gmp_k=args.gmp_k).to(device)

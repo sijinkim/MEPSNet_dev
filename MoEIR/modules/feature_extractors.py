@@ -63,3 +63,30 @@ class FeatureNet(nn.Module):
             f"<{self.__class__.__name__}>"
 
 
+class LiteFeatureNet(nn.Module):
+    def __init__(self, feature_size=64): 
+        super(LiteFeatureNet, self).__init__()
+        kernel = 3
+        self.sub_mean = MeanShift(rgb_range=255)
+
+        self.conv1 = nn.Conv2d(in_channels=3,
+                               out_channels=feature_size,
+                               kernel_size=kernel,
+                               stride=1,
+                               padding=(kernel//2),
+                               bias=True)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        x = self.sub_mean(x)
+
+        output = self.relu(self.conv1(x))
+
+        return output
+       
+
+    def __repr__(self):
+        return f"{self.__module__.split('.')[-1].upper()} " \
+            f"<{self.__class__.__name__}>"
+
+

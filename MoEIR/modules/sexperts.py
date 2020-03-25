@@ -38,11 +38,11 @@ class SResidual_Block(nn.Module):
 
 
 class SFEDSRNet(nn.Module):
-    def __init__(self, bank, feature_size=256, out_feature_size=64, n_resblocks=7, n_templates=4):
+    def __init__(self, bank, feature_size=256, out_feature_size=64, n_resblocks=7, n_templates=4, res_scale=1):
         super(SFEDSRNet, self).__init__()
-
         layers_per_bank = n_resblocks * 2 # Residual bock has 2 convolution layers
         kernel_size = 3 
+        self.res_scale = res_scale
         self.bank = bank #shared TemplateBank
         self.res_block = self.make_layer(num_blocks=n_resblocks, bank=self.bank) 
         
@@ -72,7 +72,7 @@ class SFEDSRNet(nn.Module):
     def make_layer(self, num_blocks, bank):
         blocks = []
         for i in range(1, num_blocks+1):
-            blocks.append(SResidual_Block(bank, res_scale=0.1))
+            blocks.append(SResidual_Block(bank, res_scale=self.res_scale))
         return nn.Sequential(*blocks)  
 
 
