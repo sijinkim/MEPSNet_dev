@@ -57,6 +57,7 @@ class MoE_with_Template(nn.Module):
             self.experts = [FEDSRNet(feature_size=args.featuresize, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[i]).to(device) for i in range(0, n_experts)]
         elif ex_type == 'sfedsr':
             self.template_bank = SharedTemplateBank(num_templates=args.n_template, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[0]).to(device)
+
             self.experts = [SFEDSRNet(bank=self.template_bank.bank, feature_size=args.featuresize, out_feature_size=args.ex_featuresize, n_resblocks=args.n_resblock, n_templates=args.n_template, res_scale=args.res_scale).to(device) for i in range(0, n_experts)] 
         else:
             raise ValueError

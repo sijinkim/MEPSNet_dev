@@ -1,7 +1,8 @@
 import argparse
+import imageio
 import numpy as np
 import os
-import imageio
+import sys
 
 from tensorboardX import SummaryWriter
 import torch
@@ -56,7 +57,8 @@ parser.add_argument('--res_scale', type=float, default=1.0, help='Set 0.1 scaler
 parser.add_argument('--lite_feature', action='store_true', help='Use lite version(only one Conv) feature extractNet')
 parser.add_argument('--lite_reconst', action='store_true', help='Use lite version(only one Conv) reconstructNet')
 
-parser.add_argument('--comment', type=str, help='GATE or ATTENTION - using in writer(tebsorboard)')
+parser.add_argument('--epoch_thresh', type=int, default=2000, help='End threshold for training (default: 2000)')
+parser.add_argument('--comment', type=str, help='GATE or ATTENTION - using in writer(tensorboard)')
 opt = parser.parse_args()
 
 print('Start setting')
@@ -237,6 +239,7 @@ while True:
         writer.add_scalars(f'VALID/TYPE_PSNR', {'gwn':psnr_result['gwn'], 'gblur':psnr_result['gblur'], 'contrast':psnr_result['contrast'], 'fnoise':psnr_result['fnoise']}, epoch)
         #writer.add_scalars(f'VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
         print(f'TYPE PSNR: {psnr_result}')
+        
         scheduler.step()      
 
         # Saving models
@@ -250,7 +253,11 @@ while True:
                         'train_loss':loss_record, #last train batch loss
                         'epoch': epoch}, 
                         PATH)
-            print('Model save: ', PATH)            
+            print('Model save: ', PATH)
+    
+    if epoch % opt.epoch_thresh == 0:
+        sys.exit()
+    
     epoch += 1
     
 
