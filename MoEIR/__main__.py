@@ -56,9 +56,12 @@ parser.add_argument('--gmp_k', type=int, default=10, help='number of GMP classes
 parser.add_argument('--res_scale', type=float, default=1.0, help='Set 0.1 scaler if the expert feature size is more than 64')
 parser.add_argument('--lite_feature', action='store_true', help='Use lite version(only one Conv) feature extractNet')
 parser.add_argument('--lite_reconst', action='store_true', help='Use lite version(only one Conv) reconstructNet')
+parser.add_argument('--n_bank', type=int, default=1, help='Number of parameter sharing banks(default: 1)')
+parser.add_argument('--rir', action='store_true', help='Add Residual In Residual(RIR) connection in experts networks')
 
 parser.add_argument('--epoch_thresh', type=int, default=2000, help='End threshold for training (default: 2000)')
 parser.add_argument('--comment', type=str, help='GATE or ATTENTION - using in writer(tensorboard)')
+
 opt = parser.parse_args()
 
 print('Start setting')
@@ -71,7 +74,7 @@ else:
 
 
 #set tensorboardX writer
-writer = SummaryWriter(log_dir=os.path.join(f'/home/tiwlsdi0306/workspace/MoEIR_compare_runs/part{opt.n_partition}', f'{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.featuresize}_{opt.comment}'))
+writer = SummaryWriter(log_dir=os.path.join(f'/home/tiwlsdi0306/workspace/MoEIR_compare_runs/part{opt.n_partition}', f'{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.ex_featuresize}_{opt.comment}'))
 
 #set seed for train
 torch.manual_seed(0)
@@ -95,8 +98,8 @@ elif opt.attention:
         raise ValueError
 
 else:
+    
     raise ValueError
-
 
 module_sequence = train_sequence.take_modules()
 print('Prepare module sequence')
@@ -107,7 +110,7 @@ print(module_sequence_keys)
 
 #set checkpoint path
 checkpoint_path = os.path.join('/home/tiwlsdi0306/workspace/snapshot/MoEIR_checkpoint', f'part{opt.n_partition}') 
-PATH = os.path.join(checkpoint_path, f'{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.featuresize}_{opt.comment}.tar')
+PATH = os.path.join(checkpoint_path, f'{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.ex_featuresize}_{opt.comment}.tar')
 
 train_dataset = TrainDataset(size=opt.patchsize, n_partition=opt.n_partition)
 train_loader = DataLoader( train_dataset,
@@ -189,7 +192,7 @@ while True:
                 result_patch = []
                 for patch_idx, patch in enumerate(data):
                     patch = patch.to(device).squeeze(0)
-                    outputs = train_sequence.forward_valid_phase(patch).squeeze(0).cpu().clamp(0,255).round().permute(1,2,0).numpy() #[0,255] range (H, W, 3) numpy array
+                    outputs = train_sequence.forward(patch).squeeze(0).cpu().clamp(0,255).round().permute(1,2,0).numpy() #[0,255] range (H, W, 3) numpy array
                     result_patch.append(outputs)
                 #Merge 8 image patches
                 h, w = ref.size()[1:]
@@ -219,7 +222,7 @@ while True:
                 psnr_record += psnr_
                 #ssim_record += ssim_
                 if opt.resultsave:
-                    save_path = f'/home/tiwlsdi0306/workspace/snapshot/MoEIR_result/part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.featuresize}_{opt.comment}'
+                    save_path = f'/home/tiwlsdi0306/workspace/snapshot/MoEIR_result/part{opt.n_partition}/{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.ex_featuresize}_{opt.comment}'
                     try:
                         os.makedirs(save_path)
                     except FileExistsError:
