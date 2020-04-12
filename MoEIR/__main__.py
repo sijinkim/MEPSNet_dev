@@ -58,6 +58,8 @@ parser.add_argument('--lite_feature', action='store_true', help='Use lite versio
 parser.add_argument('--lite_reconst', action='store_true', help='Use lite version(only one Conv) reconstructNet')
 parser.add_argument('--n_bank', type=int, default=1, help='Number of parameter sharing banks(default: 1)')
 parser.add_argument('--rir', action='store_true', help='Add Residual In Residual(RIR) connection in experts networks')
+parser.add_argument('--rir_attention', action='store_true', help='Adapt CWA in each RIR Blocks')
+parser.add_argument('--n_sres', type=int, default=3, help='Nomber of SResidual blocks in each RIR blocks')
 
 parser.add_argument('--epoch_thresh', type=int, default=2000, help='End threshold for training (default: 2000)')
 parser.add_argument('--comment', type=str, help='GATE or ATTENTION - using in writer(tensorboard)')
@@ -81,19 +83,22 @@ torch.manual_seed(0)
 np.random.seed(0)
 torch.cuda.manual_seed(0)
 print(f'Fix seed number: 0')
-
 if opt.gate:
     from MoEIR.modules import MoE_with_Gate
     train_sequence = MoE_with_Gate(device=device,n_experts=len(opt.experts),args=opt)        
 
 elif opt.attention:
-    if not opt.no_attention:
+    if not opt.no_attention and not opt.rir_attention:
         from MoEIR.modules import MoE_with_Template
         train_sequence = MoE_with_Template(device=device, n_experts=len(opt.experts), args=opt)
     
     elif opt.no_attention:
         from MoEIR.modules import MoE_with_Template_without_CWA
         train_sequence = MoE_with_Template_without_CWA(device=device, n_experts=len(opt.experts), args=opt)
+    
+    elif opt.rir_attention:
+        from MoEIR.modules import MoE_with_Template_CWA_in_RIR
+        train_sequence = MoE_with_Template_CWA_in_RIR(device=device, n_experts=len(opt.experts), args=opt)
     else:
         raise ValueError
 
@@ -120,7 +125,6 @@ train_loader = DataLoader( train_dataset,
                            pin_memory=not opt.cpu,
 		                   shuffle=True)
 print(f'Train dataset: part{opt.n_partition} distorted data - length of data: {len(train_dataset)}')
-
 #Load validation data
 valid_dataset = ValidTestDataset(dataset=opt.dataset, n_partition=opt.n_partition, num_images=opt.n_valimages, type_='valid')
 valid_loader = DataLoader( valid_dataset,
@@ -143,13 +147,13 @@ optimizer = optim.Adam(
     lr=opt.lr
 )
 
-scheduler = MultiStepLR(optimizer, milestones=[200, 500], gamma=0.5)
-print(f'LOSS: {criterion}, optimizer: Adam, Using MultiStepLR scheduler[200,500]')
+
+scheduler = MultiStepLR(optimizer, milestones=[int(len(train_loader)*200), int(len(train_loader)*500)], gamma=0.5)
+print(f'LOSS: {criterion}, optimizer: Adam, Using MultiStepLR scheduler {scheduler.milestones}')
 
 print("Start Training")
 epoch = 1
 loss_record = 0
-
 while True:
     print(f"Epoch={epoch}, lr={optimizer.param_groups[0]['lr']}/ expert lr = {optimizer.param_groups[1]['lr']}")
     loss_sum = 0

@@ -54,7 +54,36 @@ class RIR(nn.Module):
         x += res #RIR
         return x
 
+class RIR_with_CWA(nn.Module):
+    def __init__(self, feature_size=64, n_block=3, bank=None, device=None):
+        super(RIR_with_CWA, self).__init__()
+        self.bank = bank
+
+        blocks = []
+        for _ in range(0, n_block):
+            blocks.append(SResidual_Block(bank, device))
+        self.Sres_blocks = nn.ModuleList(blocks)        
+
+        self.pool = nn.AdaptiveAvgPool2d((1,1))
+        self.squeeze = nn.Conv2d(in_channels=feature_size, out_channels=feature_size//2, kernel_size=1, stride=1, padding=0, bias=True)
+        self.excitation = nn.Conv2d(in_channels=feature_size//2, out_channels=feature_size, kernel_size=1, stride=1, padding=0, bias=True)
+        self.relu = nn.ReLU(inplace=True)
+        self.sigmoid = nn.Sigmoid()
+    
+    def forward(self, x):
+        res = x
+        for res_block in self.Sres_blocks:
+            x = res_block(x)
         
+        block_out = self.pool(x)
+        block_out = self.relu(self.squeeze(block_out))
+        block_out = self.sigmoid(self.excitation(block_out))
+        
+        out = x * block_out        
+
+        out += res
+        return out
+
 
 class PSRDB(nn.Module):
     def __init__(self, n_block=3, ex_feature_size=64, bank=None, device=None):
@@ -98,15 +127,16 @@ class PSRDB(nn.Module):
         
  
 class SFEDSRNet(nn.Module):
-    def __init__(self, bank, feature_size=256, out_feature_size=64, n_resblocks=9, n_templates=4, device=None, rir=False):
+    def __init__(self, bank, feature_size=256, out_feature_size=64, n_resblocks=9, n_templates=4, device=None, rir=False, rir_cwa=False, sresblocks_in_rir=3):
         super(SFEDSRNet, self).__init__()
+        self.n_sresblocks_in_rir = sresblocks_in_rir
         kernel_size = 3
         if len(bank) == 1:
             #TODO: Single bank parameter shared FEDSRNet
             layers_per_bank = n_resblocks * 2
             self.bank = bank
             if not rir:
-                self.res_block = self.make_layer_Sres(num_blocks=n_resblocks, bank=self.bank[0], device=device)
+                self.res_block = self.make_layer_Sres(num_blocks=n_resblocks, bank=self.bank[0], device=device).to(device)
                 
                 for m in self.modules():
                     if isinstance(m, nn.Conv2d):
@@ -119,7 +149,7 @@ class SFEDSRNet(nn.Module):
                     self.res_block[i].conv2.coefficients.data = coefficient_inits[(i*2)+1].to(device)  
  
             elif rir:
-                self.res_block = self.make_layer_Srir(num_blocks=int(n_resblocks/3), bank=self.bank[0], device=device)
+                self.res_block = self.make_layer_Srir(feature=out_feature_size, num_blocks=3, bank=self.bank[0], device=device, cwa=rir_cwa) #num_blocks: number of the total RIR blocks
                 for m in self.modules():
                     if isinstance(m, nn.Conv2d):
                         init.kaiming_normal_(m.weight)
@@ -183,20 +213,30 @@ class SFEDSRNet(nn.Module):
                                bias=True)
   
     def make_layer_Sres(self, num_blocks, bank, device):
+        print("Make SResidual_Block experts")
         blocks = []
         for i in range(0, num_blocks):
             blocks.append(SResidual_Block(bank, device)) 
         return nn.Sequential(*blocks)
-
-    
-    def make_layer_Srir(self, num_blocks, bank, device):
+ 
+    def make_layer_Srir(self, feature, num_blocks, bank, device, cwa):
         blocks = []
-        for i in range(0, num_blocks):
-            blocks.append(RIR(3, bank, device)) # 3 SResidual blocks in one RIR
+        if not cwa:
+            print("Make RIR SResidual_Block experts")
+            for i in range(0, num_blocks):
+                blocks.append(RIR(self.n_sresblocks_in_rir, bank, device)) # n SResidual blocks in one RIR
+        elif cwa:
+            print("Make RIR with CWA SResidual_Block experts")
+            for i in range(0, num_blocks):
+                blocks.append(RIR_with_CWA(feature, self.n_sresblocks_in_rir, bank, device))
+        else:
+            raise ValueError
+        
         return nn.Sequential(*blocks)
 
 
     def make_layer(self, n_rdb, n_block, feature_size, banks, device):
+        print("Make PSRDB SResidual_Block experts")
         blocks = []
         for _ in range(0, n_rdb):
             blocks.append(PSRDB(int(n_block), feature_size, banks, device))
@@ -207,10 +247,10 @@ class SFEDSRNet(nn.Module):
         res = self.res_block(x) #body [out_featuresize -> out_featuresize]
         res += x
         # parameters in res_blocks are shared only        
-        
+         
         x = self.output(res)
         return x
-
+        
 
     def __repr__(self):
         return f"{self.__module__.split('.')[-1].upper()} " \
