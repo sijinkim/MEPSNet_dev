@@ -175,6 +175,7 @@ while True:
         #back propagation
         loss.backward()
         optimizer.step()
+        scheduler.step()
     
     writer.add_scalar(f'TRAIN/LOSS', loss_sum/(len(train_loader)/opt.batchsize), epoch) 
     loss_record = loss
@@ -247,7 +248,6 @@ while True:
         #writer.add_scalars(f'VALID/TYPE_SSIM', {'gwn':ssim_result['gwn'], 'gblur':ssim_result['gblur'], 'contrast':ssim_result['contrast'], 'fnoise':ssim_result['fnoise']}, epoch)
         print(f'TYPE PSNR: {psnr_result}')
         
-        scheduler.step()      
 
         # Saving models
         if opt.modelsave:
