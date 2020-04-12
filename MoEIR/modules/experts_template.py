@@ -4,7 +4,7 @@ import torch.nn as nn
 from MoEIR.modules import FeatureNet, LiteFeatureNet
 from MoEIR.modules import FVDSRNet, FEDSRNet
 from MoEIR.modules import SharedTemplateBank, SFEDSRNet
-from MoEIR.modules import AttentionNet, PassNet 
+from MoEIR.modules import AttentionNet, PassNet, AttentionNet_in_RIR
 from MoEIR.modules import ReconstructNet, LiteReconstructNet
 from MoEIR.modules import GAP_GMP_AttentionNet
 
