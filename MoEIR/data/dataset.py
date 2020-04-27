@@ -79,7 +79,6 @@ class ValidTestDataset(data.Dataset):
 
         self.data_ = self.data_[:num_images * 12]
         self.target = self.target[:num_images]
-        
         #self.transform = transforms.Compose([transforms.ToTensor()])
 
     def __getitem__(self, index):
@@ -99,16 +98,17 @@ class ValidTestDataset(data.Dataset):
 		
         h_chop, w_chop = h_half + h_shave, w_quarter + w_shave
 
-        input_patch = self.make_patch_list(h=h_chop, w=w_chop)
+        input_patch = []
+        input_patch.append(torch.FloatTensor(data_[:, 0:h_chop, 0:w_chop].unsqueeze(0)))
+        input_patch.append(torch.FloatTensor(data_[:, 0:h_chop, w_quarter:w_half + w_shave].unsqueeze(0)))
+        input_patch.append(torch.FloatTensor(data_[:, 0:h_chop, w_half:w_half + w_chop].unsqueeze(0)))
+        input_patch.append(torch.FloatTensor(data_[:, 0:h_chop, w_half+w_quarter-w_shave:w].unsqueeze(0)))
 
-        input_patch[0].copy_(data_[:, 0:h_chop, 0:w_chop])
-        input_patch[1].copy_(data_[:, 0:h_chop, w_quarter:w_quarter + w_chop])
-        input_patch[2].copy_(data_[:, 0:h_chop, w_half:w_half + w_chop])
-        input_patch[3].copy_(data_[:, 0:h_chop, w-w_chop:w])
-        input_patch[4].copy_(data_[:, h-h_chop:h, 0:w_chop])
-        input_patch[5].copy_(data_[:, h-h_chop:h, w_quarter:w_quarter + w_chop])
-        input_patch[6].copy_(data_[:, h-h_chop:h, w_half: w_half + w_chop])
-        input_patch[7].copy_(data_[:, h-h_chop:h, w-w_chop:w])
+        input_patch.append(torch.FloatTensor(data_[:, h_half-h_shave:h, 0:w_chop].unsqueeze(0)))
+        input_patch.append(torch.FloatTensor(data_[:, h_half-h_shave:h, w_quarter:w_half + w_shave].unsqueeze(0)))
+        input_patch.append(torch.FloatTensor(data_[:, h_half-h_shave:h, w_half:w_half + w_chop].unsqueeze(0)))
+        input_patch.append(torch.FloatTensor(data_[:, h_half-h_shave:h, w_half+w_quarter-w_shave:w].unsqueeze(0)))
+
 
         return input_patch, target, filename
         

@@ -58,7 +58,6 @@ class MoE_with_Template(nn.Module):
         elif ex_type == 'sfedsr':
             self.template_bank = SharedTemplateBank(num_bank=args.n_bank, num_templates=args.n_template, first_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[0], device=device).to(device)
 
-            #self.experts = [SFEDSRNet(bank=self.template_bank.bank, feature_size=args.featuresize, out_feature_size=args.ex_featuresize, n_resblocks=args.n_resblock, n_templates=args.n_template, res_scale=args.res_scale).to(device) for i in range(0, n_experts)] 
             self.experts = [SFEDSRNet(bank=self.template_bank.bank, feature_size=args.featuresize, out_feature_size=args.ex_featuresize, n_resblocks=args.n_resblock, n_templates=args.n_template, device=device, rir=args.rir).to(device) for _ in range(0, n_experts)]
         else:
             raise ValueError
@@ -187,8 +186,10 @@ class MoE_with_Template_CWA_in_RIR(nn.Module):
                                                   num_experts=n_experts, 
                                                   gmp_k=args.gmp_k).to(device)
         elif args.rir_attention:
-            self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, 
-                                                 num_experts=n_experts).to(device)
+            #For CWAinRIR
+            #self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
+            # For CWAinRIR_CWA
+            self.attention = AttentionNet(feature_size=args.ex_featuresize,num_experts=n_experts).to(device)
 
         elif not args.multi_attention and not args.rir_attention:
             self.attention = AttentionNet(feature_size=args.ex_featuresize,

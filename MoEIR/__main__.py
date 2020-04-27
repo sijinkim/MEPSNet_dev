@@ -208,13 +208,14 @@ while True:
                 
                 result = np.ndarray(shape=(h, w, 3))
                 result[0:h_half, 0:w_quarter, :] = result_patch[0][0:h_half, 0:w_quarter, :]
-                result[0:h_half, w_quarter:w_half, :] = result_patch[1][0:h_half, 0:w_quarter, :]  
-                result[0:h_half, w_half:w-w_quarter, :] = result_patch[2][0:h_half, 0:w_quarter, :]
-                result[0:h_half, w-w_quarter:w, :] = result_patch[3][0:h_half, w_shave:w_chop, :]
-                result[h_half:h, 0:w_quarter, :] = result_patch[4][h_shave:h_chop, 0:w_quarter, :]
-                result[h_half:h, w_quarter:w_half, :] = result_patch[5][h_shave:h_chop, 0:w_quarter, :]
-                result[h_half:h, w_half:w-w_quarter, :] = result_patch[6][h_shave:h_chop, 0:w_quarter, :]
-                result[h_half:h, w-w_quarter:w, :] = result_patch[7][h_shave:h_chop, w_shave:w_chop, :]
+                result[0:h_half, w_quarter:w_half, :] = result_patch[1][0:h_half, 0:-w_shave, :]  
+                result[0:h_half, w_half:w_half+w_quarter, :] = result_patch[2][0:h_half, 0:w_quarter, :]
+                result[0:h_half, w_half+w_quarter:w, :] = result_patch[3][0:h_half, w_shave:, :]
+                result[h_half:h, 0:w_quarter, :] = result_patch[4][h_shave:, 0:w_quarter, :]
+                result[h_half:h, w_quarter:w_half, :] = result_patch[5][h_shave:, 0:-w_shave, :]  
+                result[h_half:h, w_half:w_half+w_quarter, :] = result_patch[6][h_shave:, 0:w_quarter, :]
+                result[h_half:h, w_half+w_quarter:w, :] = result_patch[7][h_shave:, w_shave:, :]
+                
                 #Evaluate PSNR
                 ref_array = ref.cpu().permute(1,2,0).numpy().astype(np.uint8)
                 result_array = result.astype(np.uint8)
