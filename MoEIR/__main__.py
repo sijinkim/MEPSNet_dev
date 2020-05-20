@@ -45,7 +45,7 @@ parser.add_argument('--resultsave', action='store_true')
 parser.add_argument('--feature_extractor', type=str, default='base')
 parser.add_argument('experts', type=str, nargs='+')
 parser.add_argument('--n_resblock', type=int, default=7, help='number of residual bocks in experts network(default: 7)')
-parser.add_argument('--n_template', type=int, default=4, help='number of templates per bank')
+parser.add_argument('--n_template', type=int, default=16, help='number of templates per bank')
 parser.add_argument('--kernelsize', type=int, nargs='*', help='Must match the length with the number of experts. (take 1, 3, 5, or 7)')
 parser.add_argument('--gate', type=str, help='Take gmp or gap')
 parser.add_argument('--reconstructor', type=str, default='ReconstructNet')
@@ -60,6 +60,13 @@ parser.add_argument('--n_bank', type=int, default=1, help='Number of parameter s
 parser.add_argument('--rir', action='store_true', help='Add Residual In Residual(RIR) connection in experts networks')
 parser.add_argument('--rir_attention', action='store_true', help='Adapt CWA in each RIR Blocks')
 parser.add_argument('--n_sres', type=int, default=3, help='Nomber of SResidual blocks in each RIR blocks')
+parser.add_argument('--cwa_fusion', action='store_true', help='Adapt CWA feature fusion')
+parser.add_argument('--conv_fusion', action='store_true', help='Adapt Conv feature fusion')
+parser.add_argument('--RIRintoBlock', action='store_true', help='Choice RIR in each SRCAM')
+
+# test dilate in expert SResidual blocks
+parser.add_argument('--is_dilate', type=int, default=1, choices=[1, 2, 3])
+
 
 parser.add_argument('--epoch_thresh', type=int, default=2000, help='End threshold for training (default: 2000)')
 parser.add_argument('--comment', type=str, help='GATE or ATTENTION - using in writer(tensorboard)')
@@ -75,6 +82,7 @@ else:
     print(f'Using CUDA gpu{opt.gpu}')
 
 
+
 #set tensorboardX writer
 writer = SummaryWriter(log_dir=os.path.join(f'/home/tiwlsdi0306/workspace/MoEIR_compare_runs/part{opt.n_partition}', f'{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.ex_featuresize}_{opt.comment}'))
 
@@ -88,15 +96,15 @@ if opt.gate:
     train_sequence = MoE_with_Gate(device=device,n_experts=len(opt.experts),args=opt)        
 
 elif opt.attention:
-    if not opt.no_attention and not opt.rir_attention:
-        from MoEIR.modules import MoE_with_Template
-        train_sequence = MoE_with_Template(device=device, n_experts=len(opt.experts), args=opt)
+#    if not opt.no_attention and not opt.rir_attention:
+#        from MoEIR.modules import MoE_with_Template
+#        train_sequence = MoE_with_Template(device=device, n_experts=len(opt.experts), args=opt)
     
-    elif opt.no_attention:
+    if opt.no_attention:
         from MoEIR.modules import MoE_with_Template_without_CWA
         train_sequence = MoE_with_Template_without_CWA(device=device, n_experts=len(opt.experts), args=opt)
     
-    elif opt.rir_attention:
+    elif opt.rir:
         from MoEIR.modules import MoE_with_Template_CWA_in_RIR
         train_sequence = MoE_with_Template_CWA_in_RIR(device=device, n_experts=len(opt.experts), args=opt)
     else:

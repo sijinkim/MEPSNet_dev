@@ -1,10 +1,8 @@
 from json import loads
 import os
 import math
-from .utility import calc_psnr
+from .utility import calc_psnr, calc_ssim
 
-#from skimage.metrics import peak_signal_noise_ratio as psnr
-#from skimage.metrics import structural_similarity as ssim
 
 class PSNR_SSIM_by_type:
     def __init__(self, dataset, num_partition, phase_type):
@@ -21,13 +19,6 @@ class PSNR_SSIM_by_type:
         self.num_psnr = {'gwn': 0, 'gblur': 0, 'contrast': 0, 'fnoise': 0}
         self.num_ssim = {'gwn': 0, 'gblur': 0, 'contrast': 0, 'fnoise': 0}
 
-#    def calc_psnr(self, im1, im2):
-#        im1 = im1.astype(np.float64)
-#        im2 = im2.astype(np.float64)
-#        mse = np.mean((im1 - im2)**2)
-#        if mse == 0:
-#            return float('if')
-#        return 20 * math.log10(255.0/ math.sqrt(mse))
 
     def get_noise_info(self, image_name):
         #TODO: change search method to be more efficiently
@@ -39,10 +30,15 @@ class PSNR_SSIM_by_type:
         data = self.get_noise_info(image_name)
         try: 
             for d in data['objects']:
-                psnr_ = calc_psnr(ref[int(d['ymin']):int(d['ymax']), int(d['xmin']):int(d['xmax']),:] , x[int(d['ymin']):int(d['ymax']), int(d['xmin']):int(d['xmax']),:])
+                psnr_ = calc_psnr(ref[int(d['ymin']):int(d['ymax']), int(d['xmin']):int(d['xmax']),:],
+                                  x[int(d['ymin']):int(d['ymax']), int(d['xmin']):int(d['xmax']),:])
 
                 self.type_psnr[d['type']] += psnr_
                 self.num_psnr[d['type']] += 1
+                
+                # For record each noise region info
+                print(f'{d["type"]}/H,W({d["ymin"]}-{d["ymax"]}, {d["xmin"]}-{d["xmax"]}): {format(psnr_, ".3f")}')
+                
         except: pass
 
     def get_ssim(self, x, ref, image_name): 
@@ -50,10 +46,15 @@ class PSNR_SSIM_by_type:
         
         try: 
             for d in data['objects']:
-                ssim_ = ssim(ref[int(d['ymin']):int(d['ymax']), int(d['xmin']):int(d['xmax']),:] , 
-                        x[int(d['ymin']):int(d['ymax']), int(d['xmin']):int(d['xmax']),:] , data_range=1, multichannel=True)
+                ssim_ = calc_ssim(ref[int(d['ymin']):int(d['ymax']), int(d['xmin']):int(d['xmax']),:], 
+                                  x[int(d['ymin']):int(d['ymax']), int(d['xmin']):int(d['xmax']),:])
+                
                 self.type_ssim[d['type']] += ssim_
                 self.num_ssim[d['type']] += 1
+        
+                # For record each noise region info
+                print(f'{d["type"]}/H,W({d["ymin"]}-{d["ymax"]}, {d["xmin"]}-{d["xmax"]}): {format(ssim_, ".3f")}')
+                
         except: pass
 
     def get_psnr_result(self):
@@ -71,11 +72,13 @@ class PSNR_SSIM_by_type:
     
     def get_ssim_result(self):
         ssim_result = {}
-        #print(f'Number of types: {self.num_ssim}')
-        #print(f'Total ssim of types: {self.type_ssim}')
         for key in self.type_ssim.keys():
             try:
-                ssim_result[key] = float(self.type_ssim[key]/self.num_ssim[key])
-            except ValueError: 
-                ssim_result[key] = 0
+                value = float(self.type_ssim[key]/self.num_ssim[key])
+                if not value == float('inf'):
+                    ssim_result[key] = value
+                else:
+                    ssim_result[key] = 1
+            except:
+                raise ValueError 
         return ssim_result

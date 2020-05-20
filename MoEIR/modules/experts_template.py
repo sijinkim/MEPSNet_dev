@@ -181,21 +181,25 @@ class MoE_with_Template_CWA_in_RIR(nn.Module):
             raise ValueError
         
         # Set attention network
-        if args.multi_attention:
-            self.attention = GAP_GMP_AttentionNet(feature_size=args.ex_featuresize,
-                                                  num_experts=n_experts, 
-                                                  gmp_k=args.gmp_k).to(device)
-        elif args.rir_attention:
-            #For CWAinRIR
-            #self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
-            # For CWAinRIR_CWA
-            self.attention = AttentionNet(feature_size=args.ex_featuresize,num_experts=n_experts).to(device)
+#        if args.multi_attention:
+#            self.attention = GAP_GMP_AttentionNet(feature_size=args.ex_featuresize,
+#                                                  num_experts=n_experts, 
+#                                                  gmp_k=args.gmp_k).to(device)
+        if args.conv_fusion:
+            self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
 
-        elif not args.multi_attention and not args.rir_attention:
-            self.attention = AttentionNet(feature_size=args.ex_featuresize,
-                                          num_experts=n_experts).to(device)
+        elif args.cwa_fusion:
+            self.attention = AttentionNet(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
+
+#            #self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
+#            # For CWAinRIR_CWA
+#            self.attention = AttentionNet(feature_size=args.ex_featuresize,num_experts=n_experts).to(device)
+
+#        elif not args.multi_attention and not args.rir_attention:
+#            self.attention = AttentionNet(feature_size=args.ex_featuresize,
+#                                          num_experts=n_experts).to(device)
         else: 
-            print(f"ValueError: Check the argument multi_attention {args.multi_attention}") 
+            print(f"ValueError: Check the argument about Feature fusion") 
             raise ValueError        
    
         # Set type of experts network
@@ -203,11 +207,11 @@ class MoE_with_Template_CWA_in_RIR(nn.Module):
         if ex_type == 'fvdsr':
             self.experts = [FVDSRNet(feature_size=args.featuresize, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[i]).to(device) for i in range(0, n_experts)]
         elif ex_type == 'fedsr':
-            self.experts = [FEDSRNet(feature_size=args.featuresize, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[i]).to(device) for i in range(0, n_experts)]
+            self.experts = [FEDSRNet(feature_size=args.featuresize, out_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[i], n_residual_blocks=args.n_sres, device=device).to(device) for i in range(0, n_experts)]
         elif ex_type == 'sfedsr':
             self.template_bank = SharedTemplateBank(num_bank=args.n_bank, num_templates=args.n_template, first_feature_size=args.ex_featuresize, kernel_size=args.kernelsize[0], device=device).to(device)
 
-            self.experts = [SFEDSRNet(bank=self.template_bank.bank, feature_size=args.featuresize, out_feature_size=args.ex_featuresize, n_resblocks=args.n_resblock, n_templates=args.n_template, device=device, rir=args.rir, rir_cwa=args.rir_attention, sresblocks_in_rir=args.n_sres).to(device) for _ in range(0, n_experts)]
+            self.experts = [SFEDSRNet(bank=self.template_bank.bank, feature_size=args.featuresize, out_feature_size=args.ex_featuresize, n_resblocks=args.n_resblock, n_templates=args.n_template, device=device, RIRintoBlock=args.RIRintoBlock, rir_cwa=args.rir_attention, sresblocks_in_rir=args.n_sres, dilate=args.is_dilate).to(device) for _ in range(0, n_experts)]
         else:
             raise ValueError
 
@@ -218,6 +222,7 @@ class MoE_with_Template_CWA_in_RIR(nn.Module):
         concat_experts = torch.cat(tuple(experts_output), dim=1)
         cwa_output = self.attention(concat_experts)
         final_output = self.reconstructor(cwa_output)
+    
         return final_output
 
     def forward_valid_phase(self, x):
@@ -226,6 +231,7 @@ class MoE_with_Template_CWA_in_RIR(nn.Module):
         concat_experts = torch.cat(tuple(experts_output), dim=1)
         cwa_output = self.attention(concat_experts)
         final_output = self.reconstructor(cwa_output)
+
         return final_output
 
     def take_modules(self):

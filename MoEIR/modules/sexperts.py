@@ -20,28 +20,45 @@ class SharedTemplateBank(nn.Module):
     
 
 class SResidual_Block(nn.Module):
-    def __init__(self, bank=None, device= None):
+    def __init__(self, bank=None, device=None, dilate=1):
         super(SResidual_Block, self).__init__()
+        self.is_dilate=dilate
         
-        self.conv1 = SConv2d(bank).to(device)
-        self.conv2 = SConv2d(bank).to(device)
+        if self.is_dilate == 1: 
+            self.conv1 = SConv2d(bank, stride=1, padding=1, dilation=1).to(device)
+            self.conv2 = SConv2d(bank, stride=1, padding=1, dilation=1).to(device)
+                   
+        elif self.is_dilate == 2:
+            self.conv1 = SConv2d(bank, stride=1, padding=2, dilation=self.is_dilate).to(device)
+            self.conv2 = SConv2d(bank, stride=1, padding=2, dilation=self.is_dilate).to(device)
+        
+        elif self.is_dilate == 3:
+            self.conv1 = SConv2d(bank, stride=1, padding=4, dilation=self.is_dilate).to(device)
+            self.conv2 = SConv2d(bank, stride=1, padding=4, dilation=self.is_dilate).to(device)
+                
+        else:
+            raise ValueError 
+
         self.relu = nn.ReLU(inplace=True).to(device)
+        
+
 
     def forward(self, x):
         res = x
         x = self.conv2(self.relu(self.conv1(x)))
-        #x = x.mul(self.res_scale)
         x += res
         return x
 
+
 class RIR(nn.Module):
-    def __init__(self, n_block=3, bank=None, device=None):
+    def __init__(self, n_block=3, bank=None, dilate=1,  device=None):
         super(RIR, self).__init__()
         self.bank = bank
-        
+        self.is_dilate = dilate
+        print("Setting RIR without CWA BLOCK") 
         blocks = []
         for _ in range(0, n_block):
-            blocks.append(SResidual_Block(bank, device))
+            blocks.append(SResidual_Block(bank, device, self.is_dilate))
         
         self.Sres_blocks = nn.ModuleList(blocks)
         
@@ -55,13 +72,13 @@ class RIR(nn.Module):
         return x
 
 class RIR_with_CWA(nn.Module):
-    def __init__(self, feature_size=64, n_block=3, bank=None, device=None):
+    def __init__(self, feature_size=64, n_block=3, bank=None, device=None, dilate=1):
         super(RIR_with_CWA, self).__init__()
         self.bank = bank
-
+        self.is_dilate = dilate
         blocks = []
         for _ in range(0, n_block):
-            blocks.append(SResidual_Block(bank, device))
+            blocks.append(SResidual_Block(bank, device, self.is_dilate))
         self.Sres_blocks = nn.ModuleList(blocks)        
 
         self.pool = nn.AdaptiveAvgPool2d((1,1))
@@ -127,15 +144,15 @@ class PSRDB(nn.Module):
         
  
 class SFEDSRNet(nn.Module):
-    def __init__(self, bank, feature_size=256, out_feature_size=64, n_resblocks=9, n_templates=4, device=None, rir=False, rir_cwa=False, sresblocks_in_rir=3):
+    def __init__(self, bank, feature_size=256, out_feature_size=64, n_resblocks=9, n_templates=4, device=None, RIRintoBlock=False, rir_cwa=False, sresblocks_in_rir=12, dilate=1):
         super(SFEDSRNet, self).__init__()
         self.n_sresblocks_in_rir = sresblocks_in_rir
+        self.is_dilate = dilate
         kernel_size = 3
         if len(bank) == 1:
-            #TODO: Single bank parameter shared FEDSRNet
             layers_per_bank = n_resblocks * 2
             self.bank = bank
-            if not rir:
+            if not RIRintoBlock:
                 self.res_block = self.make_layer_Sres(num_blocks=n_resblocks, bank=self.bank[0], device=device).to(device)
                 
                 for m in self.modules():
@@ -148,7 +165,7 @@ class SFEDSRNet(nn.Module):
                     self.res_block[i].conv1.coefficients.data = coefficient_inits[i*2].to(device)
                     self.res_block[i].conv2.coefficients.data = coefficient_inits[(i*2)+1].to(device)  
  
-            elif rir:
+            elif RIRintoBlock:
                 self.res_block = self.make_layer_Srir(feature=out_feature_size, num_blocks=3, bank=self.bank[0], device=device, cwa=rir_cwa) #num_blocks: number of the total RIR blocks
                 for m in self.modules():
                     if isinstance(m, nn.Conv2d):
@@ -224,11 +241,11 @@ class SFEDSRNet(nn.Module):
         if not cwa:
             print("Make RIR SResidual_Block experts")
             for i in range(0, num_blocks):
-                blocks.append(RIR(self.n_sresblocks_in_rir, bank, device)) # n SResidual blocks in one RIR
+                blocks.append(RIR(self.n_sresblocks_in_rir, bank, self.is_dilate, device)) # n SResidual blocks in one RIR
         elif cwa:
             print("Make RIR with CWA SResidual_Block experts")
             for i in range(0, num_blocks):
-                blocks.append(RIR_with_CWA(feature, self.n_sresblocks_in_rir, bank, device))
+                blocks.append(RIR_with_CWA(feature, self.n_sresblocks_in_rir, bank, device, self.is_dilate))
         else:
             raise ValueError
         
@@ -242,13 +259,19 @@ class SFEDSRNet(nn.Module):
             blocks.append(PSRDB(int(n_block), feature_size, banks, device))
         return nn.Sequential(*blocks)
 
+
     def forward(self, x):
         x = self.input(x) #head [featuresize -> out_featuresize]
         res = self.res_block(x) #body [out_featuresize -> out_featuresize]
         res += x
-        # parameters in res_blocks are shared only        
          
         x = self.output(res)
+
+        #x = self.input(x)  #ExpertVersion2
+        #res = self.res_block(x)
+        #res = self.output(res)
+        #x = x + res
+
         return x
         
 

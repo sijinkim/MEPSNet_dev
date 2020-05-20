@@ -1,7 +1,8 @@
 from .feature_extractors import FeatureNet, LiteFeatureNet
 from .attentions import AttentionNet, PassNet, AttentionNet_in_RIR
 from .gates import GMP_GateNet, GAP_GateNet
-from .experts import FVDSRNet, FEDSRNet
+from .experts_v2 import FVDSRNet, FEDSRNet
+#from .experts import FVDSRNet, FEDSRNet
 from .reconstructors import ReconstructNet, LiteReconstructNet
 
 from .common import MeanShift

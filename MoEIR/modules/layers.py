@@ -16,13 +16,14 @@ class TemplateBank(nn.Module):
 
 
 class SConv2d(nn.Module):
-    def __init__(self, bank, stride=1, padding=1):
+    def __init__(self, bank, stride=1, padding=1, dilation=1):
         super(SConv2d, self).__init__()
         self.stride = stride
         self.padding = padding
         self.bank = bank
+        self.dilation = dilation
         self.coefficients = nn.Parameter(torch.zeros(bank.coefficient_shape))
           
     def forward(self, input):
         params = self.bank(self.coefficients)
-        return F.conv2d(input, params, stride=self.stride, padding=self.padding)
+        return F.conv2d(input, params, stride=self.stride, padding=self.padding, dilation=self.dilation)

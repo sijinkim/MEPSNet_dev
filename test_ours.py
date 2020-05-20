@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from MoEIR.data import ValidTestDataset
 from MoEIR.measure import utility
-
+from MoEIR.measure.psnr_ssim_by_type import PSNR_SSIM_by_type
 
 parser = argparse.ArgumentParser(prog='Test multi-noise image denoising')
 
@@ -47,6 +47,11 @@ parser.add_argument('--rir_attention', action='store_true')
 parser.add_argument('--n_sres', type=int, default=3)
 parser.add_argument('--n_resblock', type=int, default=9)
 parser.add_argument('--n_template', type=int, default=16)
+parser.add_argument('--is_dilate', type=int, default=1, choices=[1,2,3])
+parser.add_argument('--RIRintoBlock', action='store_true')
+parser.add_argument('--cwa_fusion', action='store_true')
+parser.add_argument('--conv_fusion', action='store_true')
+
 
 parser.add_argument('--comment', type=str, default='Ntemplate16_AddInit_Resblock9*3_CWAinRIR')
 
@@ -59,6 +64,13 @@ opt = parser.parse_args()
 
 
 model_path = f'{opt.experts[0]}_{len(opt.experts)}_patch{opt.patchsize}_batch{opt.batchsize}_feature{opt.ex_featuresize}_{opt.comment}'
+
+print(f'Test model path: part{opt.model_partition} trained {model_path}\n')
+print(f'Test Dataset: {opt.dataset}-part{opt.data_partition}\n')
+
+log_path = f'/home/tiwlsdi0306/workspace/snapshot/MoEIR_test/{opt.dataset}/part{opt.data_partition}/training_part{opt.model_partition}'
+try: os.makedirs(log_path)
+except FileExistsError: pass
 
 sys.stdout = open(f'/home/tiwlsdi0306/workspace/snapshot/MoEIR_test/{opt.dataset}/part{opt.data_partition}/training_part{opt.model_partition}/{model_path}.txt', 'w')
 
@@ -102,13 +114,13 @@ elif opt.attention:
 else:
     raise ValueError
 
-#prepare module_sequence
+# Prepare module_sequence
 module_sequence = model.take_modules()
 module_sequence_keys = list(module_sequence.keys())
 print('Test model sequence: ', module_sequence)
 
 
-#Read saved model
+# Read saved model
 checkpoint_dir = f'/home/tiwlsdi0306/workspace/snapshot/MoEIR_checkpoint/part{opt.model_partition}'
 #FILE = f'{opt.experts[0]}_{len(opt.experts)}_{module_sequence_keys[2]}_{opt.comment}.tar'
 
@@ -125,8 +137,8 @@ module_sequence[module_sequence_keys[3]].load_state_dict(checkpoint[f'{module_se
 for idx, state in enumerate(checkpoint[f'{module_sequence_keys[1]}_state_dict']):
     module_sequence[module_sequence_keys[1]][idx].load_state_dict(state)
 
-#ValidTestDataset(type_='test')
-test_dataset = ValidTestDataset(dataset=opt.dataset, n_partition=opt.data_partition, type_ = 'test', num_images=opt.n_images)
+# ValidTestDataset(type_='test')
+test_dataset = ValidTestDataset(dataset=opt.dataset, n_partition=opt.data_partition, type_='test', num_images=opt.n_images)
 test_loader = DataLoader(test_dataset,
                         batch_size=1,
                         drop_last=False,
@@ -134,6 +146,8 @@ test_loader = DataLoader(test_dataset,
                         shuffle=False)
 # Evaluation
 PSNR, SSIM  = 0, 0
+type_measure = PSNR_SSIM_by_type(dataset=opt.dataset, num_partition=opt.data_partition, phase_type='test') 
+
 with torch.no_grad():
         for step, (data, ref, filename) in enumerate(test_loader):
             ref = ref.squeeze(0) #torch.Tensor [3, h, w]
@@ -170,6 +184,13 @@ with torch.no_grad():
             print(f'{filename} PSNR: {psnr_}, SSIM: {ssim_}')
             PSNR += psnr_
             SSIM += ssim_
+            
+            # Evaluate by type of the noise
+            print(f'[TYPE PSNR]')
+            type_measure.get_psnr(x=result_array, ref=ref_array, image_name=filename) # Calculate per psnr of noises in each images
+            print(f'[TYPE SSIM]')
+            type_measure.get_ssim(x=result_array, ref=ref_array, image_name=filename)
+            print('\n') 
 
             # save reconstructed image
             save_path = os.path.join(f'/home/tiwlsdi0306/workspace/snapshot/MoEIR_test/{opt.dataset}/part{opt.data_partition}', f'training_part{opt.model_partition}' ,model_path)
@@ -179,7 +200,11 @@ with torch.no_grad():
                 pass
             imageio.imwrite(os.path.join(save_path, f'{filename}'), result_array)
 
-    
 print(f'MODEL [{model_path}]\nAvg PSNR: {PSNR/len(test_loader)}, SSIM: {SSIM/len(test_loader)}')
+
+TYPE_PSNR = type_measure.get_psnr_result()
+TYPE_SSIM = type_measure.get_ssim_result()
+
+print(f'Avg TYPE PSNR: {TYPE_PSNR}\nAvg TYPE SSIM: {TYPE_SSIM}')
 
 sys.stdout.close()
