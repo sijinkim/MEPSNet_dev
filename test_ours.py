@@ -96,21 +96,19 @@ if opt.gate:
     model = MoE_with_Gate()
 
 elif opt.attention:
-    if not opt.no_attention and not opt.rir_attention: #RIR
-        from MoEIR.modules import MoE_with_Template
-        model = MoE_with_Template(device=device,
-                                     n_experts=len(opt.experts),
-                                     args=opt)
-    elif opt.no_attention:
+#    if not opt.no_attention and not opt.rir_attention: #RIR
+#        from MoEIR.modules import MoE_with_Template
+#        model = MoE_with_Template(device=device,
+##                                     n_experts=len(opt.experts),
+ #                                    args=opt)
+    if opt.no_attention:
         from MoEIR.modules import MoE_with_Template_without_CWA #RIR without CWA
-        model = MoE_with_Template_without_CWA(device=device,
-                                                 n_experts=len(opt.experts),
-                                                 args=opt)
-    elif opt.rir_attention:
+        model = MoE_with_Template_without_CWA(device=device, n_experts=len(opt.experts), args=opt)
+    elif opt.rir:
         from MoEIR.modules import MoE_with_Template_CWA_in_RIR #CWAinRIR
-        model = MoE_with_Template_CWA_in_RIR(device=device,
-                                                n_experts=len(opt.experts),
-                                                args=opt)
+        model = MoE_with_Template_CWA_in_RIR(device=device, n_experts=len(opt.experts), args=opt)
+    else:
+        raise ValueError
 else:
     raise ValueError
 
