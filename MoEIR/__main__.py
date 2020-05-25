@@ -63,6 +63,7 @@ parser.add_argument('--n_sres', type=int, default=3, help='Nomber of SResidual b
 parser.add_argument('--cwa_fusion', action='store_true', help='Adapt CWA feature fusion')
 parser.add_argument('--conv_fusion', action='store_true', help='Adapt Conv feature fusion')
 parser.add_argument('--RIRintoBlock', action='store_true', help='Choice RIR in each SRCAM')
+parser.add_argument('--LSC_test', action='store_true', help='Adapt SFEDSRNet_noLSC and MoE_with_LSC')
 
 # test dilate in expert SResidual blocks
 parser.add_argument('--is_dilate', type=int, default=1, choices=[1, 2, 3])
@@ -107,6 +108,11 @@ elif opt.attention:
     elif opt.rir:
         from MoEIR.modules import MoE_with_Template_CWA_in_RIR
         train_sequence = MoE_with_Template_CWA_in_RIR(device=device, n_experts=len(opt.experts), args=opt)
+    
+    elif opt.LSC_test:
+        from MoEIR.modules import MoE_with_LSC
+        train_sequence = MoE_with_LSC(device=device, n_experts=len(opt.experts), args=opt)
+
     else:
         raise ValueError
 
