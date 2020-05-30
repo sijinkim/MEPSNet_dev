@@ -1,5 +1,5 @@
 from .feature_extractors import FeatureNet, LiteFeatureNet
-from .attentions import AttentionNet, PassNet, AttentionNet_in_RIR
+from .attentions import AttentionNet, No_CWA
 from .gates import GMP_GateNet, GAP_GateNet
 from .experts_v2 import FVDSRNet, FEDSRNet
 #from .experts import FVDSRNet, FEDSRNet

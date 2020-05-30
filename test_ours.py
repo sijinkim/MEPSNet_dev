@@ -50,7 +50,7 @@ parser.add_argument('--n_template', type=int, default=16)
 parser.add_argument('--is_dilate', type=int, default=1, choices=[1,2,3])
 parser.add_argument('--RIRintoBlock', action='store_true')
 parser.add_argument('--cwa_fusion', action='store_true')
-parser.add_argument('--conv_fusion', action='store_true')
+parser.add_argument('--no_fusion', action='store_true')
 parser.add_argument('--LSC_test', action='store_true')
 
 parser.add_argument('--comment', type=str, default='Ntemplate16_AddInit_Resblock9*3_CWAinRIR')

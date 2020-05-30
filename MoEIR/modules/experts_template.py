@@ -4,7 +4,7 @@ import torch.nn as nn
 from MoEIR.modules import FeatureNet, LiteFeatureNet
 from MoEIR.modules import FVDSRNet, FEDSRNet
 from MoEIR.modules import SharedTemplateBank, SFEDSRNet, SFEDSRNet_noLSC
-from MoEIR.modules import AttentionNet, PassNet, AttentionNet_in_RIR
+from MoEIR.modules import AttentionNet, No_CWA
 from MoEIR.modules import ReconstructNet, LiteReconstructNet
 from MoEIR.modules import GAP_GMP_AttentionNet
 
@@ -180,9 +180,9 @@ class MoE_with_Template_CWA_in_RIR(nn.Module):
             print(f"ValueError: Check the argument reconst network {args.lite_reconst}")
             raise ValueError
         
-        if args.conv_fusion:
-            self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
-
+        if args.no_fusion:
+#            self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
+            self.attention = No_CWA()
         elif args.cwa_fusion:
             self.attention = AttentionNet(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
 
@@ -259,9 +259,9 @@ class MoE_with_LSC(nn.Module):
             print(f"ValueError: Check the argument reconst network {args.lite_reconst}")
             raise ValueError
         
-        if args.conv_fusion:
-            self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
-
+        if args.no_fusion:
+#            self.attention = AttentionNet_in_RIR(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
+            self.attention = No_CWA()
         elif args.cwa_fusion:
             self.attention = AttentionNet(feature_size=args.ex_featuresize, num_experts=n_experts).to(device)
 

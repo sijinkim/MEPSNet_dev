@@ -61,7 +61,7 @@ parser.add_argument('--rir', action='store_true', help='Add Residual In Residual
 parser.add_argument('--rir_attention', action='store_true', help='Adapt CWA in each RIR Blocks')
 parser.add_argument('--n_sres', type=int, default=3, help='Nomber of SResidual blocks in each RIR blocks')
 parser.add_argument('--cwa_fusion', action='store_true', help='Adapt CWA feature fusion')
-parser.add_argument('--conv_fusion', action='store_true', help='Adapt Conv feature fusion')
+parser.add_argument('--no_fusion', action='store_true', help='Just concat features')
 parser.add_argument('--RIRintoBlock', action='store_true', help='Choice RIR in each SRCAM')
 parser.add_argument('--LSC_test', action='store_true', help='Adapt SFEDSRNet_noLSC and MoE_with_LSC')
 
@@ -101,11 +101,11 @@ elif opt.attention:
 #        from MoEIR.modules import MoE_with_Template
 #        train_sequence = MoE_with_Template(device=device, n_experts=len(opt.experts), args=opt)
     
-    if opt.no_attention:
-        from MoEIR.modules import MoE_with_Template_without_CWA
-        train_sequence = MoE_with_Template_without_CWA(device=device, n_experts=len(opt.experts), args=opt)
+#    if opt.no_attention:
+#        from MoEIR.modules import MoE_with_Template_without_CWA
+#        train_sequence = MoE_with_Template_without_CWA(device=device, n_experts=len(opt.experts), args=opt)
     
-    elif opt.rir:
+    if opt.rir:
         from MoEIR.modules import MoE_with_Template_CWA_in_RIR
         train_sequence = MoE_with_Template_CWA_in_RIR(device=device, n_experts=len(opt.experts), args=opt)
     

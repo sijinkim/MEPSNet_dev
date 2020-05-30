@@ -34,27 +34,27 @@ class AttentionNet(nn.Module):
         return f"{self.__module__.split('.')[-1].upper()} " \
             f"<{self.__class__.__name__}>"
 
-class AttentionNet_in_RIR(nn.Module):
-    def __init__(self, feature_size, num_experts):
-        super(AttentionNet_in_RIR, self).__init__()
-        concat_feature = feature_size * num_experts
-        
-        self.conv = nn.Conv2d(in_channels=concat_feature,
-                              out_channels=concat_feature,
-                              kernel_size=3,
-                              stride=1,
-                              padding=1,
-                              bias=True)
-        self.relu = nn.ReLU(inplace=True)        
+#class AttentionNet_in_RIR(nn.Module):
+#    def __init__(self, feature_size, num_experts):
+#        super(AttentionNet_in_RIR, self).__init__()
+#        concat_feature = feature_size * num_experts
+#        
+#        self.conv = nn.Conv2d(in_channels=concat_feature,
+#                              out_channels=concat_feature,
+#                              kernel_size=3,
+#                              stride=1,
+#                              padding=1,
+#                              bias=True)
+#        self.relu = nn.ReLU(inplace=True)        
+#
+#    def forward(self, x):
+#        x = self.relu(self.conv(x))
+#        return x    
 
-    def forward(self, x):
-        x = self.relu(self.conv(x))
-        return x
-
-class PassNet(nn.Module):
+class No_CWA(nn.Module):
     def __init__(self):
-        super(PassNet, self).__init__()
-
+        super(No_CWA, self).__init__()
+        print("No CWA. Just pass concated features to the reconstruction module")
     def forward(self, x):
         return x
     
