@@ -295,11 +295,13 @@ class MoE_with_LSC(nn.Module):
         return final_output
 
     def forward_valid_phase(self, x):
+        residual = x
         feature = self.feature_extractor(x)
         experts_output = [expert(feature) for expert in self.experts]
         concat_experts = torch.cat(tuple(experts_output), dim=1)
         cwa_output = self.attention(concat_experts)
-        final_output = self.reconstructor(cwa_output)
+        output = self.reconstructor(cwa_output)
+        final_output = output + residual
 
         return final_output
 
