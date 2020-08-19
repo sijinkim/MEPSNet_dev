@@ -16,6 +16,7 @@ def parse_args():
                         help='path of the pretrained model')
 
     # dataset
+    parser.add_argument('--dataset_root', type=str, default='')
     parser.add_argument('--dataset', type=str, default='DIV2K',
                         help='SHDD dataset(default: DIV2K)')
     parser.add_argument('--level', type=str, default='easy', choices=['easy', 'moderate', 'difficult'],

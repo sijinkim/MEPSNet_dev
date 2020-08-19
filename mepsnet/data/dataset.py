@@ -32,12 +32,12 @@ def ToTensorWithoutScaling(data):
 
 
 class SHDD_train(data.Dataset):
-    def __init__(self, size, level):
+    def __init__(self, dataset_root, dataset, size, level):
         super(SHDD_train, self).__init__()
         # size: train image patch size
         # level: level of SHDD according to the number of blocks in a single image(default: moderate)
 
-        self.path = f'/data/DIV2K/train/DIV2K_{level}.h5'
+        self.path = f'{dataset_root}/data/{dataset}/train/{dataset}_{level}.h5'
         self.size = size
 
     def __getitem__(self, index):
@@ -69,14 +69,16 @@ class SHDD_train(data.Dataset):
 
 
 class SHDD_test(data.Dataset):
-    def __init__(self, level, num_images, type_):
+    def __init__(self, dataset_root, dataset, level, num_images, type_):
         super(SHDD_test, self).__init__()
         # level: level of SHDD according to the number of blocks in a single image(default: moderate)
         # num_images: number of images to (validate, test) model
         # type_: 'valid' or 'test'
 
-        self.data_ = glob.glob(f'/data/DIV2K/{type_}/DIV2K_{level}/*.png')
-        self.target = glob.glob('/data/DIV2K/reference/*.png')
+        self.data_ = glob.glob(
+            f'{dataset_root}/data/{dataset}/{type_}/{dataset}_{level}/*.png')
+        self.target = glob.glob(
+            f'{dataset_root}/data/{dataset}/reference/*.png')
         self.data_.sort()
         self.target.sort()
 
