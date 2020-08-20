@@ -19,7 +19,7 @@ class Solver():
 
         self.net = module.Net(opt).to(self.dev)
         print("# Params: ", sum(map(lambda x: x.numel(), self.net.parameters())))
-        
+
         if opt.pretrain:
             self.load(opt.pretrain)
 
@@ -69,6 +69,12 @@ class Solver():
             restore_im = self.net(noisy_im)
 
             loss = self.loss_fn(restore_im, clean_im)
+
+            if not torch.isfinite(loss):
+                print(
+                    'Warning: Losses are Nan, negative infinity, or infinity. Stop Training')
+                exit(1)
+
             print('step: {} LOSS: {}'.format(step, loss))
             self.optim.zero_grad()
             loss.backward()
