@@ -27,8 +27,8 @@ def parse_args():
                         help='Loss type-mse or l1 (default:mse)')
     parser.add_argument('--weight_decay', type=float,
                         default=1e-4, help='Weight decay value in Adam optimizer')
-    parser.add_argument('--lr', type=float, default=1e-3,
-                        help='Learning rate (default:1e-3)')
+    parser.add_argument('--lr', type=float, default=1e-4,
+                        help='Learning rate (default:1e-4)')
     parser.add_argument('--decay', type=str,
                         default='200-500', help='Scheduler lr decay(default: at after 200th, 500th epochs [200-500])')
     parser.add_argument('--batchsize', type=int, default=16,
