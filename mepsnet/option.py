@@ -40,12 +40,12 @@ def parse_args():
     parser.add_argument('--num_experts', type=int, default=3)
     parser.add_argument('--expert_featsize', type=int, default=64,
                         help='Feature size in each expert module (default:64)')
-    parser.add_argument('--eval_steps', type=int, default=int(50*9600),
-                        help='Run validation every 50 epochs(1 epoch=9600 steps')
+    parser.add_argument('--eval_epochs', type=int, default=50,
+                        help='Run validation every 50 epochs (default: 50)')
     parser.add_argument('--num_valimages', type=int, default=5,
                         help='Number of validation images (default:5)')
-    parser.add_argument('--max_steps', type=int, default=2000*9600,
-                        help='1 epoch has 9600 steps. Max epoch:2K(=2K*9600 steps')
+    parser.add_argument('--max_epochs', type=int, default=2000,
+                        help='Max epoch:2K (default:2K)')
 
     # misc
     parser.add_argument('--num_workers', type=int, default=2)

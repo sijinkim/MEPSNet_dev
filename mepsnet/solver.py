@@ -8,6 +8,7 @@ import torch.nn as nn
 from data import generate_loader
 import utils
 
+#from tensorboardX import SummaryWriter
 
 class Solver():
     def __init__(self, module, opt):
@@ -31,6 +32,11 @@ class Solver():
             raise ValueError(
                 "ValueError - wrong type of loss function(need MSE or L1)")
 
+        if not opt.test_only:
+            self.train_loader = generate_loader("train", opt)
+            self.valid_loader = generate_loader("valid", opt)
+        self.test_loader = generate_loader("test", opt)
+
         self.optim = torch.optim.Adam(
             params=self.net.parameters(),
             lr=opt.lr,
@@ -40,67 +46,74 @@ class Solver():
         )
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer=self.optim,
-            milestones=[9600*int(d) for d in opt.decay.split("-")],
+            milestones=[int(len(self.train_loader)*int(d)) for d in opt.decay.split("-")],
             gamma=0.5
-        )  # milestones at 200th and 500th epochs(1 epoch has 9600 steps in SHDD DIV2K)
-
-        if not opt.test_only:
-            self.train_loader = generate_loader("train", opt)
-            self.valid_loader = generate_loader("valid", opt)
-        self.test_loader = generate_loader("test", opt)
+        )  # milestones at 200th and 500th epochs
 
         self.t1, self.t2 = None, None
-        self.best_psnr, self.best_step = 0, 0
+        self.best_psnr, self.best_epoch = 0, 0
+
+#        self.writer = SummaryWriter(log_dir = './log')
 
     def fit(self):
         opt = self.opt
 
         self.t1 = time.time()
-        for step in range(opt.max_steps):
-            try:
-                inputs = next(iters)
-            except (UnboundLocalError, StopIteration):
-                iters = iter(self.train_loader)
-                inputs = next(iters)
 
-            noisy_im = inputs[0].to(self.dev)
-            clean_im = inputs[1].to(self.dev)
+        ### NOT USED ###
+#        for epoch in range(opt.max_epochs):
+#            try:
+#                inputs = next(iters)
+#            except (UnboundLocalError, StopIteration):
+#                iters = iter(self.train_loader)
+#                inputs = next(iters)
+        epoch = 1
 
-            restore_im = self.net(noisy_im)
+        while epoch <= opt.max_epochs:
+            for batch, (data, ref) in enumerate(self.train_loader):
+                noisy_im = data.to(self.dev)
+                clean_im = ref.to(self.dev)
 
-            loss = self.loss_fn(restore_im, clean_im)
+                restore_im = self.net(noisy_im)
 
-            if not torch.isfinite(loss):
-                print(
-                    'Warning: Losses are Nan, negative infinity, or infinity. Stop Training')
-                exit(1)
+                loss = self.loss_fn(restore_im, clean_im)
 
-            print('step: {} LOSS: {}'.format(step, loss))
-            self.optim.zero_grad()
-            loss.backward()
+                if not torch.isfinite(loss):
+                    print(
+                        'Warning: Losses are Nan, negative infinity, or infinity. Stop Training')
+                    exit(1)
 
-            self.optim.step()
-            self.scheduler.step()
+                print('[{}/{}] LOSS: {}'.format(epoch, batch+1, loss))
+                self.optim.zero_grad()
+                loss.backward()
 
-            if (step+1) % opt.eval_steps == 0:
-                self.summary_and_save(step, self.valid_loader)
+                self.optim.step()
+                self.scheduler.step()
 
-    def summary_and_save(self, step, loader):
-        step, max_steps = (step+1)//1000, self.opt.max_steps//1000
+#            self.writer.add_scalar('train/loss', total_loss, epoch)
+
+            if epoch % opt.eval_epochs == 0:
+                self.summary_and_save(epoch, self.valid_loader)
+                
+            epoch += 1
+
+    def summary_and_save(self, epoch, loader):
+        epoch, max_epochs = epoch, self.opt.max_epochs
         psnr = self.evaluate(loader)
         self.t2 = time.time()
 
         if psnr >= self.best_psnr:
-            self.best_psnr, self.best_step = psnr, step
-            self.save(step)
+            self.best_psnr, self.best_epoch = psnr, epoch
+            self.save(epoch)
 
         curr_lr = self.scheduler.get_lr()[0]
-        eta = (self.t2-self.t1) * (max_steps-step) / 3600
-        print("[{}K/{}K] {:.2f} (Best: {:.2f} @ {}K step) LR: {}, ETA: {:.1f} hours"
-              .format(step, max_steps, psnr, self.best_psnr, self.best_step,
+        eta = (self.t2-self.t1) * (max_epochs-epoch) / 3600
+        print("[{}K/{}K] {:.2f} (Best: {:.2f} @ {}K epochs) LR: {}, ETA: {:.1f} hours"
+              .format(epoch, max_epochs, psnr, self.best_psnr, self.best_epoch,
                       curr_lr, eta))
 
         self.t1 = time.time()
+#        self.writer.add_scalar('valid/psnr', psnr, epoch)
 
     @ torch.no_grad()
     def evaluate(self, loader):
@@ -129,7 +142,6 @@ class Solver():
             h_half, w_half = int(h/2), int(w/2)
             h_quarter, w_quarter = int(h_half/2), int(w_half/2)
             h_shave, w_shave = int(h_quarter/2), int(w_quarter/2)
-            # h_chop, w_chop = h_half + h_shave, w_quarter + w_shave
 
             restore_im = np.ndarray((h, w, 3))
 
@@ -157,11 +169,13 @@ class Solver():
                 save_path = os.path.join(save_root, f"{filename}")
                 io.imsave(save_path, restore_im)
 
-            psnr += utils.calculate_psnr(clean_im, restore_im)
-
+            psnr_tmp = utils.calculate_psnr(clean_im, restore_im)
+            print(f'{i}th image PSNR: {psnr_tmp}')
+            psnr += psnr_tmp
             self.net.train()
 
-            return psnr/len(loader)
+        return psnr/len(loader)
+
 
     def load(self, path):
         state_dict = torch.load(
@@ -193,7 +207,7 @@ class Solver():
                     "Missing key {} in model's state_dict".format(name)
                 )
 
-    def save(self, step):
+    def save(self, epoch):
         os.makedirs(self.opt.ckpt_root, exist_ok=True)
-        save_path = os.path.join(self.opt.ckpt_root, str(step)+".pt")
+        save_path = os.path.join(self.opt.ckpt_root, str(epoch)+".pt")
         torch.save(self.net.state_dict(), save_path)
